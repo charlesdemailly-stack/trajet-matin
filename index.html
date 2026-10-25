@@ -200,6 +200,7 @@ footer { font-size: .78rem; color: var(--muted); }
     <article class="card" id="cMeteo" data-state="off">
       <div class="card-head"><h2>Pluie · La Madeleine</h2><span class="pill" id="pMeteo">…</span></div>
       <p class="big" id="bMeteo">–</p>
+      <p class="stale" id="xMeteo"></p>
       <p class="sub" id="sMeteo"></p>
       <p class="meta" id="mMeteo"></p>
     </article>
@@ -247,7 +248,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
+  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
@@ -266,6 +267,7 @@ footer { font-size: .78rem; color: var(--muted); }
     metroRoute: "ME1",
     clockVlilleMin: 6, clockVlilleMax: 10, clockVlilleRed: 15,   /* vélo : orange à (nb de vélos borné entre min et max) minutes, rouge à clockVlilleRed minutes */
     clockMetroWarnSec: 120, clockMetroBadSec: 300,
+    clockMeteoWarnSec: 1800, clockMeteoBadSec: 7200,               /* pluie : orange au-delà de 30 min, rouge au-delà de 2 h sans lecture réussie */
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     refreshMs: 60000
   };
@@ -278,7 +280,7 @@ footer { font-size: .78rem; color: var(--muted); }
   };
   var TZ = "Europe/Paris";
   var R = { meteo: null, vlille: null, bus: null, alerts: null };
-  var LAST = { vlille: null, bus: null }, loadedOnce = false;
+  var LAST = { meteo: null, vlille: null, bus: null }, loadedOnce = false;
 
   function $(id) { return document.getElementById(id); }
   function setCard(key, state, pill, big, sub, meta) {
@@ -322,6 +324,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var level = 0, title = "Rien de spécial";
       if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
+      LAST.meteo = Date.now();
       R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
       var state = level === 2 ? "bad" : level === 1 ? "warn" : "ok";
       var pill = level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
@@ -352,10 +355,10 @@ footer { font-size: .78rem; color: var(--muted); }
     el.innerHTML = CLOCK_SVG + "<span>" + fmtElapsed(ms) + "</span>";
     el.className = "clock" + (level ? " t-" + level : "");
   }
-  function setStale(id, ms, level) {
+  function setStale(id, ms, level, word) {
     var el = $(id);
     if (ms === null || ms === undefined || !level || level === "ok") { el.innerHTML = ""; el.className = "stale"; return; }
-    el.innerHTML = (level === "bad" ? "Données non fiables" : "Données un peu anciennes") + ' : <span style="white-space:nowrap">MAJ il y a ' + fmtElapsed(ms).replace(/ /g, "\u00a0") + "</span>";
+    el.innerHTML = (level === "bad" ? (word || "Données") + " non fiables" : (word || "Données") + " un peu " + "anciennes") + ' : <span style="white-space:nowrap">MAJ il y a ' + fmtElapsed(ms).replace(/ /g, "\u00a0") + "</span>";
     el.className = "stale t-" + level;
   }
   /* Âge d'une source : { ms, level } ; level "bad" d'office si la dernière lecture a échoué */
@@ -365,8 +368,15 @@ footer { font-size: .78rem; color: var(--muted); }
     var lv = !R.alerts || ms > CFG.clockMetroBadSec * 1000 ? "bad" : ms > CFG.clockMetroWarnSec * 1000 ? "warn" : "ok";
     return { ms: ms, level: lv };
   }
+  function meteoAge() {
+    if (!LAST.meteo) return { ms: null, level: "" };
+    var ms = Math.max(0, Date.now() - LAST.meteo);
+    return { ms: ms, level: !R.meteo || ms > CFG.clockMeteoBadSec * 1000 ? "bad" : ms > CFG.clockMeteoWarnSec * 1000 ? "warn" : "ok" };
+  }
   function renderClocks() {
     var now = Date.now(), a;
+    a = meteoAge();
+    setClock("kMeteo", a.ms, a.level); setStale("xMeteo", a.ms, a.level, "Prévisions");
     if (LAST.vlille) {
       var ms = Math.max(0, now - LAST.vlille), min = Math.floor(ms / 60000);
       var bikes = R.vlille ? R.vlille.bikes : 0, warnAt = Math.min(CFG.clockVlilleMax, Math.max(CFG.clockVlilleMin, bikes));
@@ -730,7 +740,11 @@ footer { font-size: .78rem; color: var(--muted); }
   function verdict() {
     var v = $("verdict"), main = $("vMain"), sub = $("vSub");
     var parts = [], lvl = 0;
-    if (R.meteo) { if (R.meteo.level >= 1) main.innerHTML = IC_WARN + R.meteo.title; else main.textContent = R.meteo.title; lvl = R.meteo.level; }
+    if (R.meteo) {
+      lvl = R.meteo.level;
+      if (meteoAge().level === "bad") { main.innerHTML = IC_WARN + "Météo à vérifier"; lvl = Math.max(lvl, 1); }
+      else if (R.meteo.level >= 1) main.innerHTML = IC_WARN + R.meteo.title; else main.textContent = R.meteo.title;
+    }
     else { main.textContent = "Météo indisponible"; lvl = -1; }
     /* Transport */
     var busMin = R.bus && R.bus.next ? Math.max(0, Math.round((R.bus.next.t - Date.now() / 1000) / 60)) : null;
