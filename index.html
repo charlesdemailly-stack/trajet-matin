@@ -142,7 +142,10 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 #aBus .chev { flex: none; font-size: .7rem; transition: transform .15s; }
 #aBus li[aria-expanded="true"] .chev { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { #aBus .chev { transition: none; } }
-.links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; border: 1px dotted var(--muted); }
+.links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; padding: 6px 12px; }
+#wToggle svg { display: block; transition: transform .2s ease; }
+#wToggle[aria-expanded="true"] svg { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { #wToggle svg { transition: none; } }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .links a, .links button { font-weight: 600; font-size: .8rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; text-decoration: none; min-height: 34px; display: inline-flex; align-items: center; }
 footer { font-size: .78rem; color: var(--muted); }
@@ -199,7 +202,7 @@ footer { font-size: .78rem; color: var(--muted); }
         <a href="https://x.com/mobilille_" target="_blank" rel="noopener">@mobilille_</a>
         <a href="https://x.com/TransportMel" target="_blank" rel="noopener">@TransportMel</a>
         <!-- WIDGET-COMPARAISON-BOUTON-DEBUT -->
-        <button type="button" id="wToggle" aria-expanded="false" aria-controls="wBox">Widget TransportMEL</button>
+        <button type="button" id="wToggle" aria-expanded="false" aria-controls="wBox" aria-label="Afficher le widget TransportMEL" title="Widget TransportMEL"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 2v12M2 8h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         <!-- WIDGET-COMPARAISON-BOUTON-FIN -->
       </div>
       <!-- WIDGET-COMPARAISON-BOITE-DEBUT : bloc temporaire, masqué par défaut (widget TransportMEL, ligne 1 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc, le bouton « wToggle » ci-dessus et le script « wToggle » plus bas. -->
@@ -617,7 +620,7 @@ footer { font-size: .78rem; color: var(--muted); }
     var box = $("wBox"), open = box.hidden, f = box.querySelector("iframe");
     box.hidden = !open;
     wBtn.setAttribute("aria-expanded", String(open));
-    wBtn.textContent = open ? "Masquer le widget" : "Widget TransportMEL";
+    wBtn.setAttribute("aria-label", open ? "Masquer le widget TransportMEL" : "Afficher le widget TransportMEL");
     if (open && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src"));
   });
   $("refresh").addEventListener("click", refresh);
