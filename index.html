@@ -132,9 +132,13 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 #aBus li::before { display: none; }
 #aBus .badge.alert { flex: none; background: transparent; color: var(--warn); border: 1px dashed var(--warn); font-size: .9rem; }
 #aBus .since { flex: none; white-space: nowrap; }
+#aBus .since + .txt::before { content: "· "; }
+#aBus li[aria-expanded="true"] .txt::before { content: none; }
 #aBus .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#aBus li[aria-expanded="true"] { align-items: flex-start; }
-#aBus li[aria-expanded="true"] .txt { white-space: normal; overflow: visible; }
+#aBus li[aria-expanded="true"] { flex-wrap: wrap; align-items: center; }
+#aBus li[aria-expanded="true"] .since { order: 1; }
+#aBus li[aria-expanded="true"] .chev { order: 2; margin-left: auto; }
+#aBus li[aria-expanded="true"] .txt { order: 3; flex: 1 1 100%; white-space: pre-line; overflow: visible; text-align: left; padding: 2px 0 6px; }
 #aBus .chev { flex: none; font-size: .7rem; transition: transform .15s; }
 #aBus li[aria-expanded="true"] .chev { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { #aBus .chev { transition: none; } }
@@ -478,6 +482,7 @@ footer { font-size: .78rem; color: var(--muted); }
         var feedEnd = p.heure_fin_prevue ? wallTime(p.heure_fin_prevue) : null;
         if (feedEnd !== null && isNaN(feedEnd)) feedEnd = null;
         var msg = cleanMsg(p.message), start = pickDate(p);
+        var raw = String(p.message || "").replace(/[\u200b\u200c\u200d\ufeff]/g, "").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
         var tEnd = textEnd(msg, start);
         /* fin réelle = la plus proche entre le texte du message et le champ officiel (souvent un simple délai de 24 h) */
         var hardEnd = feedEnd !== null && tEnd !== null ? Math.min(feedEnd, tEnd) : (tEnd !== null ? tEnd : feedEnd);
@@ -486,7 +491,7 @@ footer { font-size: .78rem; color: var(--muted); }
           return;
         }
         if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
-        if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") { (busAlerts[line] = busAlerts[line] || []).push({ start: start, msg: msg }); }
+        if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") { (busAlerts[line] = busAlerts[line] || []).push({ start: start, msg: raw }); }
       });
       var hasDates = items.length > 0 && items.every(function (x) { return x.start !== null; });
       items.sort(function (x, y) { return (y.start || 0) - (x.start || 0); });
@@ -560,7 +565,7 @@ footer { font-size: .78rem; color: var(--muted); }
         var key = l + "|" + a.msg; if (seen[key]) return; seen[key] = 1;
         var li = document.createElement("li"), b = document.createElement("span"), sn = document.createElement("span"), tx = document.createElement("span"), ch = document.createElement("span");
         b.className = "badge alert"; b.textContent = "⚠︎ " + l;
-        sn.className = "since"; sn.textContent = a.start ? "depuis le " + new Date(a.start).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + " ·" : "";
+        sn.className = "since"; sn.textContent = a.start ? "depuis le " + new Date(a.start).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) : "";
         tx.className = "txt"; tx.textContent = a.msg;
         ch.className = "chev"; ch.textContent = "▾"; ch.setAttribute("aria-hidden", "true");
         li.setAttribute("role", "button"); li.setAttribute("tabindex", "0"); li.setAttribute("aria-expanded", "false");
