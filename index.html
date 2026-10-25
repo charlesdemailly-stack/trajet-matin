@@ -139,6 +139,13 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .clock { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .clock:empty { display: none; }
 .clock svg { flex: none; }
+.clock.t-ok { color: var(--good); }
+footer .clock { margin-left: 0; font-size: inherit; vertical-align: -.17em; }
+footer .clock:empty { display: inline-flex; }
+.stale { margin: 2px 0 0; font-size: .95rem; font-weight: 600; }
+.stale:empty { display: none; }
+.stale.t-warn { color: var(--warn); }
+.stale.t-bad { color: var(--bad); }
 .clock.t-warn { color: var(--warn); }
 .clock.t-bad { color: var(--bad); }
 .alt { display: grid; gap: 2px; margin-top: 6px; font-size: .85rem; color: var(--muted); }
@@ -200,14 +207,16 @@ footer { font-size: .78rem; color: var(--muted); }
     <article class="card" id="cVlille" data-state="off">
       <div class="card-head"><h2>V'Lille · Rue du Parc</h2><span class="pill" id="pVlille">…</span></div>
       <p class="big" id="bVlille">–</p>
+      <p class="stale" id="xVlille"></p>
       <p class="sub" id="sVlille"></p>
       <div class="alt" id="nVlille"></div>
-      <div class="foot"><p class="meta" id="mVlille"></p><span class="clock" id="kVlille"></span></div>
+      <div class="foot"><p class="meta" id="mVlille"></p></div>
     </article>
 
     <article class="card" id="cBus" data-state="off">
       <div class="card-head"><h2>Bus · Chaufour → Flandres</h2><span class="pill" id="pBus">…</span></div>
       <p class="big" id="bBus">–</p>
+      <p class="stale" id="xBus"></p>
       <ul class="next" id="nBus"></ul>
       <p class="meta" id="mBus"></p>
       <ul class="msgs" id="aBus"></ul>
@@ -216,8 +225,9 @@ footer { font-size: .78rem; color: var(--muted); }
     <article class="card" id="cMetro" data-state="off">
       <div class="card-head"><h2>Métro · ligne 1</h2><span class="pill" id="pMetro">…</span></div>
       <p class="big" id="bMetro">–</p>
+      <p class="stale" id="xMetro"></p>
       <p class="sub" id="sMetro"></p>
-      <div class="foot"><p class="meta" id="mMetro"></p><span class="clock" id="kMetro"></span></div>
+      <div class="foot"><p class="meta" id="mMetro"></p></div>
       <ul class="msgs" id="nMetro"></ul>
       <div class="links">
         <a href="https://www.ilevia.fr/infos-trafic" target="_blank" rel="noopener">Infos trafic Ilévia</a>
@@ -237,7 +247,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Bus : passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : données ouvertes de la Métropole · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
+  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
@@ -255,7 +265,8 @@ footer { font-size: .78rem; color: var(--muted); }
     tightMin: 4,  /* orange pendant tightMin minutes de plus (ici 8 à 11), puis couleur normale */
     metroRoute: "ME1",
     clockVlilleMin: 6, clockVlilleMax: 10, clockVlilleRed: 15,   /* vélo : orange à (nb de vélos borné entre min et max) minutes, rouge à clockVlilleRed minutes */
-    clockMetroWarnSec: 120, clockMetroBadSec: 300,               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
+    clockMetroWarnSec: 120, clockMetroBadSec: 300,
+    clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     refreshMs: 60000
   };
   var URLS = {
@@ -267,6 +278,7 @@ footer { font-size: .78rem; color: var(--muted); }
   };
   var TZ = "Europe/Paris";
   var R = { meteo: null, vlille: null, bus: null, alerts: null };
+  var LAST = { vlille: null, bus: null }, loadedOnce = false;
 
   function $(id) { return document.getElementById(id); }
   function setCard(key, state, pill, big, sub, meta) {
@@ -336,21 +348,43 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   function setClock(id, ms, level) {
     var el = $(id);
-    if (ms === null || ms === undefined) { el.innerHTML = ""; el.className = "clock"; return; }
+    if (ms === null || ms === undefined) { el.innerHTML = CLOCK_SVG + "<span>–</span>"; el.className = "clock"; return; }
     el.innerHTML = CLOCK_SVG + "<span>" + fmtElapsed(ms) + "</span>";
     el.className = "clock" + (level ? " t-" + level : "");
   }
+  function setStale(id, ms, level) {
+    var el = $(id);
+    if (ms === null || ms === undefined || !level || level === "ok") { el.innerHTML = ""; el.className = "stale"; return; }
+    el.innerHTML = (level === "bad" ? "Données non fiables" : "Données un peu anciennes") + ' : <span style="white-space:nowrap">MAJ il y a ' + fmtElapsed(ms).replace(/ /g, "\u00a0") + "</span>";
+    el.className = "stale t-" + level;
+  }
+  /* Âge d'une source : { ms, level } ; level "bad" d'office si la dernière lecture a échoué */
+  function metroAge() {
+    if (!R.alertsReadAt) return { ms: null, level: "" };
+    var ms = Math.max(0, Date.now() - R.alertsReadAt);
+    var lv = !R.alerts || ms > CFG.clockMetroBadSec * 1000 ? "bad" : ms > CFG.clockMetroWarnSec * 1000 ? "warn" : "ok";
+    return { ms: ms, level: lv };
+  }
   function renderClocks() {
-    var now = Date.now();
-    if (R.vlille && R.vlille.at) {
-      var ms = Math.max(0, now - R.vlille.at), min = Math.floor(ms / 60000);
-      var warnAt = Math.min(CFG.clockVlilleMax, Math.max(CFG.clockVlilleMin, R.vlille.bikes));
-      setClock("kVlille", ms, min >= CFG.clockVlilleRed ? "bad" : min >= warnAt ? "warn" : "");
-    } else setClock("kVlille", null);
-    if (R.alertsReadAt) {
-      var ms2 = Math.max(0, now - R.alertsReadAt);
-      setClock("kMetro", ms2, ms2 > CFG.clockMetroBadSec * 1000 ? "bad" : ms2 > CFG.clockMetroWarnSec * 1000 ? "warn" : "");
-    } else setClock("kMetro", null);
+    var now = Date.now(), a;
+    if (LAST.vlille) {
+      var ms = Math.max(0, now - LAST.vlille), min = Math.floor(ms / 60000);
+      var bikes = R.vlille ? R.vlille.bikes : 0, warnAt = Math.min(CFG.clockVlilleMax, Math.max(CFG.clockVlilleMin, bikes));
+      a = { ms: ms, level: !R.vlille || min >= CFG.clockVlilleRed ? "bad" : min >= warnAt ? "warn" : "ok" };
+    } else a = { ms: null, level: "" };
+    setClock("kVlille", a.ms, a.level); setStale("xVlille", a.ms, a.level);
+    if (LAST.bus) {
+      var mb = Math.max(0, now - LAST.bus);
+      a = { ms: mb, level: !R.bus || mb > CFG.clockBusBadSec * 1000 ? "bad" : mb > CFG.clockBusWarnSec * 1000 ? "warn" : "ok" };
+    } else a = { ms: null, level: "" };
+    setClock("kBus", a.ms, a.level); setStale("xBus", a.ms, a.level);
+    a = metroAge();
+    setClock("kMetro", a.ms, a.level); setStale("xMetro", a.ms, a.level);
+    /* Métro : « rien d'annoncé » ne vaut plus rien si la lecture est trop ancienne */
+    if (R.alerts && !R.alerts.metro.length && a.level === "bad" && $("cMetro").getAttribute("data-state") === "ok") {
+      setCard("Metro", "warn", "À vérifier", "À vérifier", null, "");
+    }
+    verdict();
   }
 
   /* ---------- V'Lille ---------- */
@@ -366,6 +400,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 3 ? "warn" : "ok";
       var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 3 ? "Presque vide" : "Disponible";
       R.vlille = { bikes: bikes, off: off, at: (st.last_reported || j.last_updated) * 1000 };
+      LAST.vlille = R.vlille.at;
       var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
       setCard("Vlille", state, pill, big, "", "");
       /* stations voisines, seulement si la station principale est presque vide */
@@ -449,9 +484,12 @@ footer { font-size: .78rem; color: var(--muted); }
     });
     return tu;
   }
+  var feedTs = null;
   function parseFeed(buf) {
     var b = new Uint8Array(buf), out = [];
+    feedTs = null;
     msgs(b, 0, b.length, function (f, w, s, e) {
+      if (f === 1 && w === 2) msgs(b, s, e, function (f2, w2, a2) { if (f2 === 3 && w2 === 0) feedTs = Number(a2); });
       if (f === 2 && w === 2) {
         msgs(b, s, e, function (f2, w2, s2, e2) { if (f2 === 3 && w2 === 2) out.push(parseTU(b, s2, e2)); });
       }
@@ -474,6 +512,8 @@ footer { font-size: .78rem; color: var(--muted); }
         });
         pass.sort(function (x, y) { return x.t - y.t; });
         R.bus = pass.length ? { next: pass[0], list: pass } : { next: null, list: [] };
+        var nowMs = Date.now(), fts = feedTs ? feedTs * 1000 : 0;
+        LAST.bus = (fts > nowMs - 3600000 && fts < nowMs + 300000) ? Math.min(fts, nowMs) : nowMs;
         if (pass.length) {
           function mins(p) { return Math.max(0, Math.round((p.t - now) / 60)); }
           function cls(m) { return m <= CFG.walkMin ? "bad" : m <= CFG.walkMin + CFG.tightMin ? "warn" : "ok"; }
@@ -697,11 +737,13 @@ footer { font-size: .78rem; color: var(--muted); }
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.some(function (x) { return x.kind === "stop"; });
     var NB = "\u00a0";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
+    var mQuiet = R.alerts && !mAl.length, mOld = mQuiet && metroAge().level === "bad";
+    if (mOld) lvl = Math.max(lvl, 1);
     function build(compact) {
       var parts = [];
-      parts.push(!R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
+      parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
-      parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + "Pas de bus annoncé");
+      parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.bus === null ? "indisponible" : "Pas de bus annoncé"));
       return parts.join('<span class="sep">·</span><wbr>');
     }
     var lh = parseFloat(getComputedStyle(sub).lineHeight) || parseFloat(getComputedStyle(sub).fontSize) * 1.5;
@@ -722,8 +764,8 @@ footer { font-size: .78rem; color: var(--muted); }
     if (busy) return; busy = true;
     $("refresh").textContent = "…";
     Promise.all([loadMeteo(), loadVlille(), loadRealtime(), loadAlerts()]).then(function () {
+      loadedOnce = true;
       busAlertNote();
-      verdict();
       renderClocks();
       var d = new Date();
       $("when").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · mis à jour à " + hhmm(d);
