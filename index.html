@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trajet">
+<meta name="theme-color" content="#0a121f">
+</head>
+<body style="margin:0">
+<title>Trajet du matin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Concept : écran de signalétique de station, un verdict en haut, quatre cartes à lire en un regard. */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --ink: #0e1a2b;
+  --muted: #5b6878;
+  --line: #d6dce5;
+  --accent: #1456c8;
+  --good: #14804f;
+  --good-bg: #dff3e8;
+  --warn: #9a5b00;
+  --warn-bg: #fdeccd;
+  --bad: #b3261e;
+  --bad-bg: #fbdcd9;
+  --off: #4c5868;
+  --off-bg: #e3e7ed;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a121f;
+    --surface: #121d2e;
+    --ink: #eaf0f8;
+    --muted: #9eacbf;
+    --line: #243349;
+    --accent: #6aa3ff;
+    --good: #4cd08d;
+    --good-bg: #123a2a;
+    --warn: #f2b24a;
+    --warn-bg: #3d2b0a;
+    --bad: #ff8a80;
+    --bad-bg: #45171a;
+    --off: #aab6c6;
+    --off-bg: #1c2a3f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a121f;
+  --surface: #121d2e;
+  --ink: #eaf0f8;
+  --muted: #9eacbf;
+  --line: #243349;
+  --accent: #6aa3ff;
+  --good: #4cd08d;
+  --good-bg: #123a2a;
+  --warn: #f2b24a;
+  --warn-bg: #3d2b0a;
+  --bad: #ff8a80;
+  --bad-bg: #45171a;
+  --off: #aab6c6;
+  --off-bg: #1c2a3f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.35;
+  padding-block: 14px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+header > div { min-width: 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+#when { margin: 0; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+button {
+  font: 600 .9rem var(--font-body);
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px;
+  min-height: 40px;
+}
+button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.verdict { border-radius: 14px; padding: 16px 18px; background: var(--off-bg); color: var(--off); }
+.verdict[data-level="0"] { background: var(--good-bg); color: var(--good); }
+.verdict[data-level="1"] { background: var(--warn-bg); color: var(--warn); }
+.verdict[data-level="2"] { background: var(--bad-bg); color: var(--bad); }
+.v-label { margin: 0 0 2px; font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+.v-main { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; line-height: 1.05; text-wrap: balance; }
+.v-sub { margin: 8px 0 0; font-size: 1rem; font-weight: 500; }
+
+.grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 700px) { .grid { grid-template-columns: 1fr 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: var(--off-bg); color: var(--off); white-space: nowrap; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.card[data-state="ok"] .pill { background: var(--good-bg); color: var(--good); }
+.card[data-state="warn"] .pill { background: var(--warn-bg); color: var(--warn); }
+.card[data-state="bad"] .pill { background: var(--bad-bg); color: var(--bad); }
+.big { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 3.1rem; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
+.sub { margin: 0; font-size: 1rem; }
+.meta { margin: 2px 0 0; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.next { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.next li { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
+.badge { display: inline-block; min-width: 2.2em; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 1rem; padding: 1px 7px; border-radius: 6px; background: var(--accent); color: var(--bg); }
+.msgs { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.msgs li { font-size: .85rem; color: var(--muted); display: flex; gap: 8px; align-items: baseline; }
+.msgs li::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); transform: translateY(-1px); }
+.msgs li.rec::before { background: var(--good); }
+.msgs li.old { opacity: .75; }
+.cmp { margin-top: 12px; display: grid; gap: 6px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.links a { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
+footer { font-size: .78rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .verdict, .card { transition: background-color .25s; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <div>
+      <h1>Trajet du matin</h1>
+      <p id="when">Chargement…</p>
+    </div>
+    <button id="refresh" type="button">Actualiser</button>
+  </header>
+
+  <section class="verdict" id="verdict" data-level="-1" aria-live="polite">
+    <p class="v-label">À prévoir</p>
+    <p class="v-main" id="vMain">Chargement des données…</p>
+    <p class="v-sub" id="vSub"></p>
+  </section>
+
+  <div class="grid">
+    <article class="card" id="cMeteo" data-state="off">
+      <div class="card-head"><h2>Pluie · La Madeleine</h2><span class="pill" id="pMeteo">…</span></div>
+      <p class="big" id="bMeteo">–</p>
+      <p class="sub" id="sMeteo"></p>
+      <p class="meta" id="mMeteo"></p>
+    </article>
+
+    <article class="card" id="cVlille" data-state="off">
+      <div class="card-head"><h2>V'Lille · Rue du Parc</h2><span class="pill" id="pVlille">…</span></div>
+      <p class="big" id="bVlille">–</p>
+      <p class="sub" id="sVlille"></p>
+      <p class="meta" id="mVlille"></p>
+    </article>
+
+    <article class="card" id="cBus" data-state="off">
+      <div class="card-head"><h2>Bus · Chaufour → Flandres</h2><span class="pill" id="pBus">…</span></div>
+      <p class="big" id="bBus">–</p>
+      <ul class="next" id="nBus"></ul>
+      <p class="meta" id="mBus"></p>
+      <p class="meta" id="aBus"></p>
+    </article>
+
+    <article class="card" id="cMetro" data-state="off">
+      <div class="card-head"><h2>Métro ligne 1</h2><span class="pill" id="pMetro">…</span></div>
+      <p class="big" id="bMetro">–</p>
+      <p class="sub" id="sMetro"></p>
+      <p class="meta" id="mMetro"></p>
+      <ul class="msgs" id="nMetro"></ul>
+      <div class="links">
+        <a href="https://www.ilevia.fr/infos-trafic" target="_blank" rel="noopener">Infos trafic Ilévia</a>
+        <a href="https://transportmel.fr/status" target="_blank" rel="noopener">Statut TransportMEL</a>
+        <a href="https://x.com/mobilille_" target="_blank" rel="noopener">@mobilille_</a>
+        <a href="https://x.com/TransportMel" target="_blank" rel="noopener">@TransportMel</a>
+      </div>
+      <!-- WIDGET-COMPARAISON-DEBUT : bloc temporaire (widget TransportMEL, ligne 1 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc jusqu'à WIDGET-COMPARAISON-FIN. -->
+      <div class="cmp">
+        <p class="meta">Pour comparer · widget TransportMEL (ligne 1, Gare Lille Flandres). Passages théoriques ; un bandeau apparaît en cas de panne signalée.</p>
+        <iframe src="https://transportmel.fr/widget/arret?nom=Gare%20Lille%20Flandres&amp;lat=50.63769&amp;lon=3.07093&amp;lignes=M1" title="Prochains passages · Gare Lille Flandres · ligne 1" width="100%" height="320" style="border:0;border-radius:16px;max-width:520px" loading="lazy"></iframe>
+      </div>
+      <!-- WIDGET-COMPARAISON-FIN -->
+    </article>
+  </div>
+
+  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var CFG = {
+    lat: 50.65, lon: 3.07,
+    vlilleId: "184",
+    busStop: "CHF002",
+    busRoutes: ["86", "88", "L5", "L91"],
+    metroRoute: "ME1",
+    refreshMs: 60000
+  };
+  var URLS = {
+    meteo: "https://api.open-meteo.com/v1/forecast?latitude=" + CFG.lat + "&longitude=" + CFG.lon +
+      "&hourly=temperature_2m,precipitation_probability,precipitation&timezone=Europe%2FParis&forecast_days=2",
+    vlille: "https://media.ilevia.fr/opendata/station_status.json",
+    rt: "https://proxy.transport.data.gouv.fr/resource/ilevia-lille-gtfs-rt",
+    alerts: "https://data.lillemetropole.fr/geoserver/ogc/features/v1/collections/dsp_ilevia%3Aperturbations/items?f=application%2Fgeo%2Bjson&limit=500"
+  };
+  var TZ = "Europe/Paris";
+  var R = { meteo: null, vlille: null, bus: null, alerts: null };
+
+  function $(id) { return document.getElementById(id); }
+  function setCard(key, state, pill, big, sub, meta) {
+    $("c" + key).setAttribute("data-state", state);
+    $("p" + key).textContent = pill;
+    $("b" + key).innerHTML = big;
+    if (sub != null && $("s" + key)) $("s" + key).textContent = sub;
+    if ($("m" + key)) $("m" + key).textContent = meta || "";
+  }
+  function hhmm(d) { return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: TZ }); }
+  function parisNow() {
+    var parts = new Intl.DateTimeFormat("fr-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+    var o = {}; parts.forEach(function (p) { o[p.type] = p.value; });
+    return { date: o.year + "-" + o.month + "-" + o.day, hour: parseInt(o.hour, 10) };
+  }
+  function getJSON(url) {
+    return fetch(url, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
+  }
+
+  /* ---------- Météo ---------- */
+  function loadMeteo() {
+    return getJSON(URLS.meteo).then(function (j) {
+      var t = j.hourly.time, prob = j.hourly.precipitation_probability, mm = j.hourly.precipitation, temp = j.hourly.temperature_2m;
+      var now = parisNow(), day = now.date, start = Math.max(now.hour, 6), end = 20, label = "aujourd'hui";
+      if (now.hour >= 19) { day = t[24].slice(0, 10); start = 7; label = "demain"; }
+      var idx = [];
+      t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h < end) idx.push(i); });
+      if (!idx.length) throw new Error("no hours");
+      var maxP = 0, sum = 0, tmin = 99, tmax = -99, hours = [];
+      idx.forEach(function (i) {
+        var h = parseInt(t[i].slice(11, 13), 10);
+        maxP = Math.max(maxP, prob[i] || 0); sum += mm[i] || 0;
+        tmin = Math.min(tmin, temp[i]); tmax = Math.max(tmax, temp[i]);
+        if ((prob[i] || 0) >= 40 || (mm[i] || 0) >= 0.2) hours.push(h);
+      });
+      var ranges = [], a = null, b = null;
+      hours.forEach(function (h) {
+        if (a === null) { a = b = h; } else if (h === b + 1) { b = h; } else { ranges.push(a + "h–" + (b + 1) + "h"); a = b = h; }
+      });
+      if (a !== null) ranges.push(a + "h–" + (b + 1) + "h");
+      var level = 0, title = "Rien de spécial";
+      if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
+      else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
+      R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
+      var state = level === 2 ? "bad" : level === 1 ? "warn" : "ok";
+      var pill = level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
+      var big = ranges.length ? ranges.join(" · ") : "Pas de pluie";
+      setCard("Meteo", state, pill, big,
+        "Risque max " + Math.round(maxP) + " % · " + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm",
+        label + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
+    }).catch(function () {
+      R.meteo = null;
+      setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
+    });
+  }
+
+  /* ---------- V'Lille ---------- */
+  function loadVlille() {
+    return getJSON(URLS.vlille).then(function (j) {
+      var st = null;
+      j.data.stations.forEach(function (s) { if (String(s.station_id) === CFG.vlilleId) st = s; });
+      if (!st) throw new Error("station");
+      var ageMin = Math.round((Date.now() / 1000 - (st.last_reported || j.last_updated)) / 60);
+      var bikes = st.num_bikes_available;
+      var off = st.is_renting === false || st.is_installed === false;
+      var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 2 ? "warn" : "ok";
+      var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 2 ? "Presque vide" : "Disponible";
+      R.vlille = { bikes: bikes, off: off };
+      setCard("Vlille", state, pill, bikes + " <small>vélo" + (bikes > 1 ? "s" : "") + "</small>", "",
+        "Relevé il y a " + Math.max(ageMin, 0) + " min");
+    }).catch(function () {
+      R.vlille = null;
+      setCard("Vlille", "off", "Indisponible", "–", "Station injoignable.", "");
+    });
+  }
+
+  /* ---------- Protobuf GTFS-RT (lecteur minimal) ---------- */
+  function varint(b, p) {
+    var r = 0n, s = 0n, x;
+    do { x = b[p.i++]; r |= BigInt(x & 127) << s; s += 7n; } while (x & 128);
+    return r;
+  }
+  function msgs(b, start, end, cb) {
+    var p = { i: start };
+    while (p.i < end) {
+      var tag = Number(varint(b, p)), f = tag >> 3, w = tag & 7;
+      if (w === 0) { cb(f, w, varint(b, p)); }
+      else if (w === 2) { var len = Number(varint(b, p)); cb(f, w, p.i, p.i + len); p.i += len; }
+      else if (w === 1) { p.i += 8; }
+      else if (w === 5) { p.i += 4; }
+      else { throw new Error("wire"); }
+    }
+  }
+  var dec = new TextDecoder();
+  function str(b, s, e) { return dec.decode(b.subarray(s, e)); }
+  function asInt(v) { return Number(BigInt.asIntN(64, v)); }
+  function parseTU(b, s, e) {
+    var tu = { route: null, trip: null, rel: 0, stops: [] };
+    msgs(b, s, e, function (f, w, a, c) {
+      if (f === 1 && w === 2) {
+        msgs(b, a, c, function (f2, w2, a2, c2) {
+          if (f2 === 1 && w2 === 2) tu.trip = str(b, a2, c2);
+          else if (f2 === 5 && w2 === 2) tu.route = str(b, a2, c2);
+          else if (f2 === 4 && w2 === 0) tu.rel = Number(a2);
+        });
+      } else if (f === 2 && w === 2) {
+        var st = { id: null, dep: null, arr: null, depDelay: null, arrDelay: null, rel: 0 };
+        msgs(b, a, c, function (f2, w2, a2, c2) {
+          if (f2 === 4 && w2 === 2) st.id = str(b, a2, c2);
+          else if (f2 === 5 && w2 === 0) st.rel = Number(a2);
+          else if ((f2 === 2 || f2 === 3) && w2 === 2) {
+            msgs(b, a2, c2, function (f3, w3, a3) {
+              if (w3 !== 0) return;
+              if (f3 === 2) { if (f2 === 3) st.dep = Number(a3); else st.arr = Number(a3); }
+              else if (f3 === 1) { if (f2 === 3) st.depDelay = asInt(a3); else st.arrDelay = asInt(a3); }
+            });
+          }
+        });
+        st.t = st.dep != null ? st.dep : st.arr;
+        st.delay = st.depDelay != null ? st.depDelay : st.arrDelay;
+        tu.stops.push(st);
+      }
+    });
+    return tu;
+  }
+  function parseFeed(buf) {
+    var b = new Uint8Array(buf), out = [];
+    msgs(b, 0, b.length, function (f, w, s, e) {
+      if (f === 2 && w === 2) {
+        msgs(b, s, e, function (f2, w2, s2, e2) { if (f2 === 3 && w2 === 2) out.push(parseTU(b, s2, e2)); });
+      }
+    });
+    return out;
+  }
+
+  /* ---------- Bus + Métro (même flux) ---------- */
+  function loadRealtime() {
+    return fetch(URLS.rt, { cache: "no-store" }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+      .then(function (buf) {
+        var tus = parseFeed(buf), now = Date.now() / 1000;
+        /* Bus */
+        var pass = [];
+        tus.forEach(function (tu) {
+          if (CFG.busRoutes.indexOf(tu.route) < 0 || tu.rel === 3) return;
+          tu.stops.forEach(function (st) {
+            if (st.id === CFG.busStop && st.rel !== 1 && st.t && st.t >= now - 30 && st.t <= now + 5400) pass.push({ line: tu.route, t: st.t });
+          });
+        });
+        pass.sort(function (x, y) { return x.t - y.t; });
+        R.bus = pass.length ? { next: pass[0], list: pass } : { next: null, list: [] };
+        if (pass.length) {
+          var m = Math.max(0, Math.round((pass[0].t - now) / 60));
+          var state = m <= 2 ? "warn" : "ok";
+          setCard("Bus", state, m <= 2 ? "Imminent" : "Prochain", (m === 0 ? "Maintenant" : m + " <small>min</small>") +
+            ' <span class="badge" style="vertical-align:middle;font-size:1.1rem">' + pass[0].line + "</span>", null,
+            "Passages annoncés en temps réel · arrêt Chaufour · lignes 86, 88, L5, L91");
+          var ul = $("nBus"); ul.innerHTML = "";
+          pass.slice(1, 4).forEach(function (p) {
+            var li = document.createElement("li");
+            li.innerHTML = '<span class="badge">' + p.line + "</span>" + Math.max(0, Math.round((p.t - now) / 60)) + " min";
+            ul.appendChild(li);
+          });
+        } else {
+          setCard("Bus", "off", "Aucun passage", "–", null, "Aucun passage annoncé dans les 90 min (hors service ou pas de données temps réel).");
+          $("nBus").innerHTML = "";
+        }
+      }).catch(function () {
+        R.bus = null;
+        setCard("Bus", "off", "Indisponible", "–", null, "Flux temps réel Ilévia injoignable.");
+        $("nBus").innerHTML = "";
+      });
+  }
+
+  /* ---------- Alertes officielles (données ouvertes de la Métropole) ---------- */
+  function cleanMsg(s) {
+    return String(s || "").replace(/[​‌‍﻿]/g, "").replace(/\s+/g, " ").trim();
+  }
+  function lineOf(cible) { return String(cible || "").replace("ILEVIA:LineRef::", "").replace(":LOC", ""); }
+  /* Les horodatages de la Métropole portent « Z » (UTC) mais correspondent à l'heure de Paris : on les relit comme tels */
+  function wallTime(v) {
+    var m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(String(v));
+    if (!m) { var raw = Date.parse(v); return isNaN(raw) ? null : raw; }
+    var t = parisToEpoch(+m[1], +m[2], +m[3], +m[4], +m[5]);
+    return t;
+  }
+  function pickDate(p) {
+    var best = null;
+    Object.keys(p).forEach(function (k) {
+      if (!/debut|publi|creat|maj|date|heure/i.test(k) || /fin/i.test(k)) return;
+      var v = p[k]; if (typeof v !== "string") return;
+      var t = wallTime(v);
+      if (t !== null && !isNaN(t) && t <= Date.now() + 5 * 60000 && (best === null || t > best)) best = t;
+    });
+    return best;
+  }
+  var STOP_WORDS = ["toute","ensemble","circulation","normalement","metro","reprise","desserte","dessert","desserte","stations","station","trafic","ligne","service","demande","police","raison","vous","pouvez","reporter","aux","cette","entre","vers","direction","normal","normale","retour","rétabli","retabli","rétablie","ainsi","avec","dans","pour","sont","pas","desservies","desservis","desservie","actuellement","suite","incident"];
+  function words(t) {
+    var seen = {}, out = [];
+    String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).forEach(function (w) {
+      if (w.length >= 4 && STOP_WORDS.indexOf(w) < 0 && !seen[w]) { seen[w] = 1; out.push(w); }
+    });
+    return out;
+  }
+  function kind(msg) {
+    if (/reprise|r[ée]tabli|retour [àa] la normale|trafic normal|reprend|de nouveau desservi|à nouveau desservi|fin de l.incident/i.test(msg)) return "rec";
+    if (/pas desservi|non desservi|ne sont pas desservi|n.est pas desservi|entre .{2,40} et .{2,40}|tron[cç]on|terminus|d[ée]vi/i.test(msg) &&
+        !/trafic (est )?interrompu sur (toute|l.ensemble)/i.test(msg)) return "part";
+    if (/interromp|interruption|ne circule|ne circulent|arr[êe]t[ée]e?s?\b|suppression|circulation arr/i.test(msg)) return "stop";
+    return "info";
+  }
+  function ageTxt(ms) {
+    var m = Math.max(0, Math.round((Date.now() - ms) / 60000));
+    if (m < 60) return "il y a " + m + " min";
+    var h = Math.floor(m / 60);
+    if (h < 48) return "il y a " + h + " h";
+    return "il y a " + Math.floor(h / 24) + " jours";
+  }
+  function whenTxt(ms) {
+    var d = new Date(ms), n = new Date();
+    var same = d.toLocaleDateString("fr-FR", { timeZone: TZ }) === n.toLocaleDateString("fr-FR", { timeZone: TZ });
+    return same ? hhmm(d) : d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + " à " + hhmm(d);
+  }
+  function short(t, n) { return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+  function parisToEpoch(y, mo, d, H, M) {
+    var guess = Date.UTC(y, mo - 1, d, H, M);
+    var parts = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(guess));
+    var o = {}; parts.forEach(function (x) { o[x.type] = parseInt(x.value, 10); });
+    return guess - (Date.UTC(o.year, o.month - 1, o.day, o.hour, o.minute) - guess);
+  }
+  /* « jusqu'à 9h45 environ », « jusque 09h 40 » : heure de fin annoncée dans le texte (heure de Paris) */
+  function textEnd(msg, ref) {
+    var m = /jusqu[’'e]?\s*(?:[àa]\s*)?(\d{1,2})\s*h\s*(\d{2})?/i.exec(msg);
+    if (!m || ref === null) return null;
+    var H = parseInt(m[1], 10), M = m[2] ? parseInt(m[2], 10) : 0;
+    if (H > 23 || M > 59) return null;
+    var f = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ref)).split("-");
+    var t = parisToEpoch(+f[0], +f[1], +f[2], H, M);
+    if (t < ref - 5 * 60000) t += 24 * 3600000;
+    return t;
+  }
+  function loadAlerts() {
+    return getJSON(URLS.alerts).then(function (j) {
+      var now = Date.now(), items = [], busAlerts = {}, endedRecently = [];
+      (j.features || []).forEach(function (f) {
+        var p = f.properties || {}, line = lineOf(p.cible);
+        var feedEnd = p.heure_fin_prevue ? wallTime(p.heure_fin_prevue) : null;
+        if (feedEnd !== null && isNaN(feedEnd)) feedEnd = null;
+        var msg = cleanMsg(p.message), start = pickDate(p);
+        var tEnd = textEnd(msg, start);
+        /* fin réelle = la plus proche entre le texte du message et le champ officiel (souvent un simple délai de 24 h) */
+        var hardEnd = feedEnd !== null && tEnd !== null ? Math.min(feedEnd, tEnd) : (tEnd !== null ? tEnd : feedEnd);
+        if (hardEnd !== null && hardEnd < now) {
+          if ((line === "M1" || line === "ME1") && now - hardEnd < 2 * 3600000 && tEnd !== null) endedRecently.push({ msg: msg, end: hardEnd });
+          return;
+        }
+        if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
+        if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") busAlerts[line] = start;
+      });
+      var hasDates = items.length > 0 && items.every(function (x) { return x.start !== null; });
+      items.sort(function (x, y) { return (y.start || 0) - (x.start || 0); });
+      /* une reprise annule les alertes plus anciennes qui partagent une station, ou toutes si elle est générale */
+      items.forEach(function (it) { it.cancelled = false; });
+      if (hasDates) {
+        items.forEach(function (rec) {
+          if (rec.kind !== "rec") return;
+          items.forEach(function (al) {
+            if (al.kind === "rec" || al.cancelled || al.start >= rec.start) return;
+            var common = rec.words.filter(function (w) { return al.words.indexOf(w) >= 0; });
+            if (common.length || !rec.words.length || /trafic (normal|r[ée]tabli)|toute la ligne|ensemble de la ligne|retour [àa] la normale|circulation normale/i.test(rec.msg)) al.cancelled = true;
+          });
+        });
+      }
+      var active = items.filter(function (x) { return x.kind !== "rec" && !x.cancelled; });
+      var recs = items.filter(function (x) { return x.kind === "rec"; });
+      var uncertain = !hasDates && recs.length && active.length;
+      R.alerts = { metro: active, bus: Object.keys(busAlerts), busStart: busAlerts, at: new Date(), uncertain: !!uncertain };
+      var at = hhmm(R.alerts.at), ul = $("nMetro");
+      ul.innerHTML = "";
+      function addLi(it, cls) {
+        var li = document.createElement("li"); li.className = cls || "";
+        li.textContent = (it.start ? whenTxt(it.start) + " · " : "") + short(it.msg, 140);
+        ul.appendChild(li);
+      }
+      if (!active.length) {
+        var lastRec = recs[0];
+        if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) {
+          setCard("Metro", "ok", "Rétabli", "Trafic rétabli", short(lastRec.msg, 200),
+            "Message " + ageTxt(lastRec.start) + " · relevé à " + at);
+        } else if (endedRecently.length) {
+          var er = endedRecently.sort(function (x, y) { return y.end - x.end; })[0];
+          setCard("Metro", "ok", "Probablement rétabli", "Fin annoncée " + hhmm(new Date(er.end)), short(er.msg, 200),
+            "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée · relevé à " + at);
+        } else {
+          setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "Aucune perturbation en cours publiée sur la ligne 1.",
+            "Données ouvertes de la Métropole, relevées à " + at + ". Une panne très récente peut ne pas y figurer encore.");
+        }
+        if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
+        return;
+      }
+      var top = active[0];
+      var worst = active.some(function (x) { return x.kind === "stop"; }) ? "stop" : active.some(function (x) { return x.kind === "part"; }) ? "part" : "info";
+      var stale = top.start && !top.end && now - top.start > 24 * 3600000;
+      var state = worst === "stop" ? "bad" : "warn";
+      if (stale) state = "warn";
+      var pill = worst === "stop" ? "Interrompu" : worst === "part" ? "Partiel" : "Information";
+      var big = worst === "stop" ? "Ligne arrêtée" : worst === "part" ? "Tronçon touché" : "À lire";
+      if (stale) { pill = "À vérifier"; big = "Ancienne alerte"; }
+      var meta = [];
+      if (top.start) meta.push("Mis à jour " + ageTxt(top.start));
+      meta.push(top.end ? "Fin prévue : " + whenTxt(top.end) : "Fin non précisée");
+      if (R.alerts.uncertain) meta.push("une reprise est annoncée, à confirmer");
+      meta.push("relevé à " + at);
+      setCard("Metro", state, pill, big, short(top.msg, 260), meta.join(" · "));
+      active.slice(1, 4).forEach(function (a2) { addLi(a2, stale ? "old" : ""); });
+      recs.slice(0, 2).forEach(function (r) { addLi(r, "rec"); });
+    }).catch(function () {
+      R.alerts = null;
+      $("nMetro").innerHTML = "";
+      setCard("Metro", "off", "Indisponible", "?", "Alertes officielles injoignables.", "Consulte les liens ci-dessous.");
+    });
+  }
+  function busAlertNote() {
+    var el = $("aBus");
+    el.textContent = R.alerts && R.alerts.bus.length ? "Perturbation annoncée sur : " + R.alerts.bus.map(function (l) { var t = R.alerts.busStart[l]; return l + (t ? " (depuis le " + new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + ")" : ""); }).join(", ") + ". Détails via les liens de la carte métro." : "";
+  }
+
+  /* ---------- Verdict ---------- */
+  function verdict() {
+    var v = $("verdict"), main = $("vMain"), sub = $("vSub");
+    var parts = [], lvl = 0;
+    if (R.meteo) { main.textContent = R.meteo.title; lvl = R.meteo.level; }
+    else { main.textContent = "Météo indisponible"; lvl = -1; }
+    /* Transport */
+    var busMin = R.bus && R.bus.next ? Math.max(0, Math.round((R.bus.next.t - Date.now() / 1000) / 60)) : null;
+    var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.some(function (x) { return x.kind === "stop"; });
+    var metroTxt = !R.alerts ? "métro : alertes indisponibles" : mStop ? "métro 1 : interrompu" : mAl.length ? "métro 1 : perturbé" : "métro 1 : rien d'annoncé";
+    if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
+    if (busMin != null) {
+      parts.push("Bus " + R.bus.next.line + " dans " + busMin + " min · " + metroTxt);
+    } else {
+      parts.push("Pas de bus annoncé · " + metroTxt);
+    }
+    if (R.vlille && !R.vlille.off) parts.push(R.vlille.bikes + " V'Lille rue du Parc");
+    sub.textContent = parts.join(" · ");
+    v.setAttribute("data-level", String(lvl));
+  }
+
+  /* ---------- Cycle ---------- */
+  var busy = false;
+  function refresh() {
+    if (busy) return; busy = true;
+    $("refresh").textContent = "…";
+    Promise.all([loadMeteo(), loadVlille(), loadRealtime(), loadAlerts()]).then(function () {
+      busAlertNote();
+      verdict();
+      var d = new Date();
+      $("when").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · mis à jour à " + hhmm(d);
+    }).then(function () { busy = false; $("refresh").textContent = "Actualiser"; });
+  }
+  $("refresh").addEventListener("click", refresh);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
+  setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
+  refresh();
+})();
+</script>
+</body>
+</html>
