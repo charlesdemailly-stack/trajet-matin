@@ -440,13 +440,14 @@ footer { font-size: .78rem; color: var(--muted); }
             ' <span class="badge" style="vertical-align:middle;font-size:1.1rem">' + pass[0].line + "</span>", null, "");
           var ul = $("nBus"); ul.innerHTML = "";
           var rest = pass.slice(1), shown = [];
-          if (c === "ok") { shown = rest.slice(0, 3).map(function (p) { return { p: p, k: cls(mins(p)), green: false }; }); }
-          else {
-            for (var i = 0; i < rest.length && shown.length < 5; i++) {
-              var k = cls(mins(rest[i]));
-              shown.push({ p: rest[i], k: k, green: k === "ok" });
-              if (k === "ok") break;
-            }
+          /* toujours au moins 3 lignes sous le gros chiffre (4 passages en tout) ; si le premier bus est rouge/orange, on prolonge jusqu'au premier passage confortable (vert), 5 lignes au maximum */
+          var greenDone = c === "ok";
+          for (var i = 0; i < rest.length && shown.length < 5; i++) {
+            var k = cls(mins(rest[i]));
+            if (shown.length >= 3 && greenDone) break;
+            var isGreen = !greenDone && k === "ok";
+            if (isGreen) greenDone = true;
+            shown.push({ p: rest[i], k: k, green: isGreen });
           }
           shown.forEach(function (it) {
             var li = document.createElement("li"), mm = mins(it.p);
