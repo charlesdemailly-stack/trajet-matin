@@ -114,6 +114,8 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .card[data-state="warn"] .pill { background: var(--warn-bg); color: var(--warn); }
 .card[data-state="bad"] .pill { background: var(--bad-bg); color: var(--bad); }
 .big { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 3.1rem; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sep { margin: 0 var(--gap, .25em); }
+.i-bike { width: 1.42em; height: 1.42em; vertical-align: -.2em; }
 .i { width: 1.3em; height: 1.3em; vertical-align: -.15em; margin-top: -.2em; margin-bottom: -.2em; }
 .big .ico-off { display: block; width: .72em; height: .72em; margin: .1em 0 .18em; color: inherit; }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
@@ -322,7 +324,7 @@ footer { font-size: .78rem; color: var(--muted); }
   }
 
   /* ---------- Horloges « temps écoulé » ---------- */
-  var IC_BUS = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Bus" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M7 18v3M17 18v3"/><circle cx="8.5" cy="14.5" r=".6"/><circle cx="15.5" cy="14.5" r=".6"/></svg>', IC_BIKE = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Vélos" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.6"/><circle cx="18.5" cy="16" r="3.6"/><path d="M5.5 16L9.5 8h5M9.5 8l3 8M12.5 16l2-8 4 8M13.5 6h2.5M8 7h3"/></svg>', IC_METRO = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Métro" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 16V8.5L12 13l4.5-4.5V16"/></svg>';
+  var IC_BUS = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Bus" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M7 18v3M17 18v3"/><circle cx="8.5" cy="14.5" r=".6"/><circle cx="15.5" cy="14.5" r=".6"/></svg>', IC_BIKE = '<svg class="i i-bike" viewBox="0 0 24 24" role="img" aria-label="Vélos" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.6"/><circle cx="18.5" cy="16" r="3.6"/><path d="M5.5 16L9.5 8h5M9.5 8l3 8M12.5 16l2-8 4 8M13.5 6h2.5M8 7h3"/></svg>', IC_METRO = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Métro" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 16V8.5L12 13l4.5-4.5V16"/></svg>';
   var BUS_OFF_SVG = '<svg class="ico-off" viewBox="0 0 32 32" role="img" aria-label="Aucun bus" focusable="false"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="3.6"/><path d="M6.4 25.6L25.6 6.4" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="butt"/></svg>';
   var CLOCK_SVG = '<svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6V8l2.3 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function fmtElapsed(ms) {
@@ -699,11 +701,17 @@ footer { font-size: .78rem; color: var(--muted); }
       parts.push(!R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
       parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + "Pas de bus annoncé");
-      return parts.join(" · ");
+      return parts.join('<span class="sep">·</span><wbr>');
     }
-    sub.innerHTML = build(false);
     var lh = parseFloat(getComputedStyle(sub).lineHeight) || parseFloat(getComputedStyle(sub).fontSize) * 1.5;
-    if (sub.scrollHeight > lh * 1.5) sub.innerHTML = build(true);
+    function tooTall() { return sub.scrollHeight > lh * 1.5; }
+    sub.style.setProperty("--gap", ".25em");
+    sub.innerHTML = build(false);
+    var compact = false;
+    if (tooTall()) { sub.innerHTML = build(true); compact = true; }
+    /* espacement élargi tant que ça tient sur une ligne */
+    sub.style.setProperty("--gap", ".6em");
+    if (tooTall()) sub.style.setProperty("--gap", ".25em");
     v.setAttribute("data-level", String(lvl));
   }
 
