@@ -692,12 +692,9 @@ footer { font-size: .78rem; color: var(--muted); }
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.some(function (x) { return x.kind === "stop"; });
     var metroTxt = !R.alerts ? "métro : alertes indisponibles" : mStop ? "métro 1 : interrompu" : mAl.length ? "métro 1 : perturbé" : "métro 1 : rien d'annoncé";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
-    if (busMin != null) {
-      parts.push("Bus " + R.bus.next.line + " dans " + busMin + " min · " + metroTxt);
-    } else {
-      parts.push("Pas de bus annoncé · " + metroTxt);
-    }
+    parts.push(metroTxt.charAt(0).toUpperCase() + metroTxt.slice(1));
     if (R.vlille && !R.vlille.off) parts.push(R.vlille.bikes + " V'Lille rue du Parc");
+    parts.push(busMin != null ? "Bus " + R.bus.next.line + " dans " + busMin + " min" : "Pas de bus annoncé");
     sub.textContent = parts.join(" · ");
     v.setAttribute("data-level", String(lvl));
   }
