@@ -127,6 +127,8 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
 .cmp[hidden] { display: none; }
+#aBus li::before { display: none; }
+#aBus .badge { flex: none; }
 .links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; border: 2px dashed var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .links a, .links button { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
@@ -169,7 +171,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <p class="big" id="bBus">–</p>
       <ul class="next" id="nBus"></ul>
       <p class="meta" id="mBus"></p>
-      <p class="meta" id="aBus"></p>
+      <ul class="msgs" id="aBus"></ul>
     </article>
 
     <article class="card" id="cMetro" data-state="off">
@@ -475,7 +477,7 @@ footer { font-size: .78rem; color: var(--muted); }
           return;
         }
         if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
-        if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") busAlerts[line] = start;
+        if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") { (busAlerts[line] = busAlerts[line] || []).push({ start: start, msg: msg }); }
       });
       var hasDates = items.length > 0 && items.every(function (x) { return x.start !== null; });
       items.sort(function (x, y) { return (y.start || 0) - (x.start || 0); });
@@ -494,7 +496,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var active = items.filter(function (x) { return x.kind !== "rec" && !x.cancelled; });
       var recs = items.filter(function (x) { return x.kind === "rec"; });
       var uncertain = !hasDates && recs.length && active.length;
-      R.alerts = { metro: active, bus: Object.keys(busAlerts), busStart: busAlerts, at: new Date(), uncertain: !!uncertain };
+      R.alerts = { metro: active, bus: Object.keys(busAlerts), busList: busAlerts, at: new Date(), uncertain: !!uncertain };
       var at = hhmm(R.alerts.at), ul = $("nMetro");
       ul.innerHTML = "";
       function addLi(it, cls) {
@@ -541,8 +543,19 @@ footer { font-size: .78rem; color: var(--muted); }
     });
   }
   function busAlertNote() {
-    var el = $("aBus");
-    el.textContent = R.alerts && R.alerts.bus.length ? "Perturbation annoncée sur : " + R.alerts.bus.map(function (l) { var t = R.alerts.busStart[l]; return l + (t ? " (depuis le " + new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + ")" : ""); }).join(", ") + ". Détails via les liens de la carte métro." : "";
+    var ul = $("aBus"); ul.innerHTML = "";
+    if (!R.alerts) return;
+    var seen = {};
+    R.alerts.bus.forEach(function (l) {
+      R.alerts.busList[l].forEach(function (a) {
+        var key = l + "|" + a.msg; if (seen[key]) return; seen[key] = 1;
+        var li = document.createElement("li"), b = document.createElement("span");
+        b.className = "badge"; b.textContent = l;
+        var since = a.start ? "depuis le " + new Date(a.start).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + " · " : "";
+        li.appendChild(b); li.appendChild(document.createTextNode(since + a.msg));
+        ul.appendChild(li);
+      });
+    });
   }
 
   /* ---------- Verdict ---------- */
