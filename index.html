@@ -690,7 +690,7 @@ footer { font-size: .78rem; color: var(--muted); }
   function verdict() {
     var v = $("verdict"), main = $("vMain"), sub = $("vSub");
     var parts = [], lvl = 0;
-    if (R.meteo) { if (R.meteo.level >= 2) main.innerHTML = IC_WARN + R.meteo.title; else main.textContent = R.meteo.title; lvl = R.meteo.level; }
+    if (R.meteo) { if (R.meteo.level >= 1) main.innerHTML = IC_WARN + R.meteo.title; else main.textContent = R.meteo.title; lvl = R.meteo.level; }
     else { main.textContent = "Météo indisponible"; lvl = -1; }
     /* Transport */
     var busMin = R.bus && R.bus.next ? Math.max(0, Math.round((R.bus.next.t - Date.now() / 1000) / 60)) : null;
