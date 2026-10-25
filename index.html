@@ -127,6 +127,12 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
 .cmp[hidden] { display: none; }
+.alt { display: grid; gap: 2px; margin-top: 6px; font-size: .85rem; color: var(--muted); }
+.alt:empty { display: none; }
+.alt .row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.alt b, .big .n { font-variant-numeric: tabular-nums; }
+.n-warn { color: var(--warn); }
+.n-bad { color: var(--bad); }
 #wBox { scroll-margin-bottom: 90px; }
 #aBus { gap: 2px; grid-template-columns: minmax(0, 1fr); }
 #aBus li { min-width: 0; align-items: center; gap: 6px; cursor: pointer; padding: 4px 0; min-height: 28px; }
@@ -180,6 +186,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <div class="card-head"><h2>V'Lille · Rue du Parc</h2><span class="pill" id="pVlille">…</span></div>
       <p class="big" id="bVlille">–</p>
       <p class="sub" id="sVlille"></p>
+      <div class="alt" id="nVlille"></div>
       <p class="meta" id="mVlille"></p>
     </article>
 
@@ -224,6 +231,9 @@ footer { font-size: .78rem; color: var(--muted); }
   var CFG = {
     lat: 50.65, lon: 3.07,
     vlilleId: "184",
+    /* stations de repli, par rang de proximité (identifiants GBFS) */
+    vlilleNear1: [["181", "Marie Marrant"], ["115", "De Gaulle"]],
+    vlilleNear2: [["98", "Place du Marché"], ["99", "La Madeleine Mairie"], ["96", "Romarin"]],
     busStop: "CHF002",
     busRoutes: ["86", "88", "L5", "L91"],
     metroRoute: "ME1",
@@ -295,21 +305,49 @@ footer { font-size: .78rem; color: var(--muted); }
   }
 
   /* ---------- V'Lille ---------- */
+  function nClass(n) { return n === 0 ? "n-bad" : n <= 3 ? "n-warn" : ""; }
   function loadVlille() {
     return getJSON(URLS.vlille).then(function (j) {
-      var st = null;
-      j.data.stations.forEach(function (s) { if (String(s.station_id) === CFG.vlilleId) st = s; });
+      var byId = {};
+      j.data.stations.forEach(function (s) { byId[String(s.station_id)] = s; });
+      var st = byId[CFG.vlilleId];
       if (!st) throw new Error("station");
       var ageMin = Math.round((Date.now() / 1000 - (st.last_reported || j.last_updated)) / 60);
       var bikes = st.num_bikes_available;
       var off = st.is_renting === false || st.is_installed === false;
-      var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 2 ? "warn" : "ok";
-      var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 2 ? "Presque vide" : "Disponible";
+      var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 3 ? "warn" : "ok";
+      var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 3 ? "Presque vide" : "Disponible";
       R.vlille = { bikes: bikes, off: off };
-      setCard("Vlille", state, pill, bikes + " <small>vélo" + (bikes > 1 ? "s" : "") + "</small>", "",
-        "Relevé il y a " + Math.max(ageMin, 0) + " min");
+      var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
+      setCard("Vlille", state, pill, big, "", "Relevé il y a " + Math.max(ageMin, 0) + " min");
+      /* stations voisines, seulement si la station principale est presque vide */
+      var box = $("nVlille"); box.innerHTML = "";
+      function row(list) {
+        var items = list.map(function (x) {
+          var s2 = byId[x[0]]; if (!s2) return null;
+          var out = s2.is_renting === false || s2.is_installed === false;
+          return { label: x[1], n: s2.num_bikes_available, out: out };
+        }).filter(Boolean);
+        if (!items.length) return null;
+        var div = document.createElement("div"); div.className = "row";
+        items.forEach(function (it) {
+          var sp = document.createElement("span");
+          sp.appendChild(document.createTextNode(it.label + " "));
+          var b = document.createElement("b");
+          b.textContent = it.out ? "hors service" : String(it.n);
+          if (!it.out) b.className = nClass(it.n);
+          sp.appendChild(b); div.appendChild(sp);
+        });
+        box.appendChild(div);
+        return items;
+      }
+      if (bikes <= 3) {
+        var t1 = row(CFG.vlilleNear1);
+        if (t1 && t1.some(function (it) { return !it.out && it.n <= 3; })) row(CFG.vlilleNear2);
+      }
     }).catch(function () {
       R.vlille = null;
+      $("nVlille").innerHTML = "";
       setCard("Vlille", "off", "Indisponible", "–", "Station injoignable.", "");
     });
   }
