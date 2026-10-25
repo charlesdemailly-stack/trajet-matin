@@ -127,7 +127,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
 .cmp[hidden] { display: none; }
-.links button { background: transparent; font-family: inherit; cursor: pointer; border-style: dashed; }
+.links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; border: 2px dashed var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .links a, .links button { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
 footer { font-size: .78rem; color: var(--muted); }
@@ -196,7 +196,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.</footer>
+  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Bus : passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : données ouvertes de la Métropole · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
@@ -513,7 +513,7 @@ footer { font-size: .78rem; color: var(--muted); }
             "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée · relevé à " + at);
         } else {
           setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "Aucune perturbation en cours publiée sur la ligne 1.",
-            "Relevé à " + at + ". Une panne très récente peut ne pas y figurer encore.");
+            "Relevé à " + at + ".");
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
         return;
