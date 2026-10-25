@@ -114,7 +114,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .card[data-state="warn"] .pill { background: var(--warn-bg); color: var(--warn); }
 .card[data-state="bad"] .pill { background: var(--bad-bg); color: var(--bad); }
 .big { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 3.1rem; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.i { width: 1.05em; height: 1.05em; vertical-align: -.17em; }
+.i { width: 1.3em; height: 1.3em; vertical-align: -.3em; margin-top: -.2em; margin-bottom: -.2em; }
 .big .ico-off { display: block; width: .72em; height: .72em; margin: .1em 0 .18em; color: inherit; }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
@@ -693,12 +693,17 @@ footer { font-size: .78rem; color: var(--muted); }
     var busMin = R.bus && R.bus.next ? Math.max(0, Math.round((R.bus.next.t - Date.now() / 1000) / 60)) : null;
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.some(function (x) { return x.kind === "stop"; });
     var NB = "\u00a0";
-    var metroTxt = !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : rien d'annoncé";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
-    parts.push(metroTxt);
-    if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
-    parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + " dans " + busMin + NB + "min" : IC_BUS + NB + "Pas de bus annoncé");
-    sub.innerHTML = parts.join(" · ");
+    function build(compact) {
+      var parts = [];
+      parts.push(!R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
+      if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
+      parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + "Pas de bus annoncé");
+      return parts.join(" · ");
+    }
+    sub.innerHTML = build(false);
+    var lh = parseFloat(getComputedStyle(sub).lineHeight) || parseFloat(getComputedStyle(sub).fontSize) * 1.5;
+    if (sub.scrollHeight > lh * 1.5) sub.innerHTML = build(true);
     v.setAttribute("data-level", String(lvl));
   }
 
@@ -732,6 +737,8 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
+  window.addEventListener("resize", verdict);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(verdict);
   refresh();
 })();
 </script>
