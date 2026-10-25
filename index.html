@@ -127,6 +127,14 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
 .cmp[hidden] { display: none; }
+.foot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px 10px; margin-top: 2px; }
+.foot .meta { margin: 2px 0 0; flex: 1 1 auto; }
+.foot .meta:empty { display: none; }
+.clock { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock:empty { display: none; }
+.clock svg { flex: none; }
+.clock.t-warn { color: var(--warn); }
+.clock.t-bad { color: var(--bad); }
 .alt { display: grid; gap: 2px; margin-top: 6px; font-size: .85rem; color: var(--muted); }
 .alt:empty { display: none; }
 .alt .row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
@@ -189,7 +197,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <p class="big" id="bVlille">–</p>
       <p class="sub" id="sVlille"></p>
       <div class="alt" id="nVlille"></div>
-      <p class="meta" id="mVlille"></p>
+      <div class="foot"><p class="meta" id="mVlille"></p><span class="clock" id="kVlille"></span></div>
     </article>
 
     <article class="card" id="cBus" data-state="off">
@@ -204,7 +212,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <div class="card-head"><h2>Métro ligne 1</h2><span class="pill" id="pMetro">…</span></div>
       <p class="big" id="bMetro">–</p>
       <p class="sub" id="sMetro"></p>
-      <p class="meta" id="mMetro"></p>
+      <div class="foot"><p class="meta" id="mMetro"></p><span class="clock" id="kMetro"></span></div>
       <ul class="msgs" id="nMetro"></ul>
       <div class="links">
         <a href="https://www.ilevia.fr/infos-trafic" target="_blank" rel="noopener">Infos trafic Ilévia</a>
@@ -241,6 +249,8 @@ footer { font-size: .78rem; color: var(--muted); }
     walkMin: 7,   /* minutes de marche jusqu'à l'arrêt Chaufour : rouge si le bus passe dans walkMin minutes ou moins */
     tightMin: 4,  /* orange pendant tightMin minutes de plus (ici 8 à 11), puis couleur normale */
     metroRoute: "ME1",
+    clockVlilleMin: 6, clockVlilleMax: 10, clockVlilleRed: 15,   /* vélo : orange à (nb de vélos borné entre min et max) minutes, rouge à clockVlilleRed minutes */
+    clockMetroWarnSec: 120, clockMetroBadSec: 300,               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     refreshMs: 60000
   };
   var URLS = {
@@ -308,6 +318,33 @@ footer { font-size: .78rem; color: var(--muted); }
     });
   }
 
+  /* ---------- Horloges « temps écoulé » ---------- */
+  var CLOCK_SVG = '<svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6V8l2.3 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function fmtElapsed(ms) {
+    var min = Math.max(1, Math.floor(ms / 60000));
+    if (ms >= 25 * 3600000) { var h = Math.floor(ms / 3600000); return Math.floor(h / 24) + " j " + (h % 24) + " h"; }
+    if (min >= 60) return Math.floor(min / 60) + " h " + (min % 60) + " min";
+    return min + " min";
+  }
+  function setClock(id, ms, level) {
+    var el = $(id);
+    if (ms === null || ms === undefined) { el.innerHTML = ""; el.className = "clock"; return; }
+    el.innerHTML = CLOCK_SVG + "<span>" + fmtElapsed(ms) + "</span>";
+    el.className = "clock" + (level ? " t-" + level : "");
+  }
+  function renderClocks() {
+    var now = Date.now();
+    if (R.vlille && R.vlille.at) {
+      var ms = Math.max(0, now - R.vlille.at), min = Math.floor(ms / 60000);
+      var warnAt = Math.min(CFG.clockVlilleMax, Math.max(CFG.clockVlilleMin, R.vlille.bikes));
+      setClock("kVlille", ms, min >= CFG.clockVlilleRed ? "bad" : min >= warnAt ? "warn" : "");
+    } else setClock("kVlille", null);
+    if (R.alertsReadAt) {
+      var ms2 = Math.max(0, now - R.alertsReadAt);
+      setClock("kMetro", ms2, ms2 > CFG.clockMetroBadSec * 1000 ? "bad" : ms2 > CFG.clockMetroWarnSec * 1000 ? "warn" : "");
+    } else setClock("kMetro", null);
+  }
+
   /* ---------- V'Lille ---------- */
   function nClass(n) { return n === 0 ? "n-bad" : n <= 3 ? "n-warn" : ""; }
   function loadVlille() {
@@ -316,14 +353,13 @@ footer { font-size: .78rem; color: var(--muted); }
       j.data.stations.forEach(function (s) { byId[String(s.station_id)] = s; });
       var st = byId[CFG.vlilleId];
       if (!st) throw new Error("station");
-      var ageMin = Math.round((Date.now() / 1000 - (st.last_reported || j.last_updated)) / 60);
       var bikes = st.num_bikes_available;
       var off = st.is_renting === false || st.is_installed === false;
       var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 3 ? "warn" : "ok";
       var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 3 ? "Presque vide" : "Disponible";
-      R.vlille = { bikes: bikes, off: off };
+      R.vlille = { bikes: bikes, off: off, at: (st.last_reported || j.last_updated) * 1000 };
       var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
-      setCard("Vlille", state, pill, big, "", "Relevé il y a " + Math.max(ageMin, 0) + " min");
+      setCard("Vlille", state, pill, big, "", "");
       /* stations voisines, seulement si la station principale est presque vide */
       var box = $("nVlille"); box.innerHTML = "";
       function row(list) {
@@ -535,6 +571,7 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   function loadAlerts() {
     return getJSON(URLS.alerts).then(function (j) {
+      R.alertsReadAt = Date.now();
       var now = Date.now(), items = [], busAlerts = {}, endedRecently = [];
       (j.features || []).forEach(function (f) {
         var p = f.properties || {}, line = lineOf(p.cible);
@@ -570,7 +607,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var recs = items.filter(function (x) { return x.kind === "rec"; });
       var uncertain = !hasDates && recs.length && active.length;
       R.alerts = { metro: active, bus: Object.keys(busAlerts), busList: busAlerts, at: new Date(), uncertain: !!uncertain };
-      var at = hhmm(R.alerts.at), ul = $("nMetro");
+      var ul = $("nMetro");
       ul.innerHTML = "";
       function addLi(it, cls) {
         var li = document.createElement("li"); li.className = cls || "";
@@ -581,14 +618,14 @@ footer { font-size: .78rem; color: var(--muted); }
         var lastRec = recs[0];
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) {
           setCard("Metro", "ok", "Rétabli", "Trafic rétabli", short(lastRec.msg, 200),
-            "Message " + ageTxt(lastRec.start) + " · relevé à " + at);
+            "Message " + ageTxt(lastRec.start));
         } else if (endedRecently.length) {
           var er = endedRecently.sort(function (x, y) { return y.end - x.end; })[0];
           setCard("Metro", "ok", "Probablement rétabli", "Fin annoncée " + hhmm(new Date(er.end)), short(er.msg, 200),
-            "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée · relevé à " + at);
+            "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée.");
         } else {
           setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "Aucune perturbation en cours publiée sur la ligne 1.",
-            "Relevé à " + at + ".");
+            "");
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
         return;
@@ -605,7 +642,6 @@ footer { font-size: .78rem; color: var(--muted); }
       if (top.start) meta.push("Mis à jour " + ageTxt(top.start));
       meta.push(top.end ? "Fin prévue : " + whenTxt(top.end) : "Fin non précisée");
       if (R.alerts.uncertain) meta.push("une reprise est annoncée, à confirmer");
-      meta.push("relevé à " + at);
       setCard("Metro", state, pill, big, short(top.msg, 260), meta.join(" · "));
       active.slice(1, 4).forEach(function (a2) { addLi(a2, stale ? "old" : ""); });
       recs.slice(0, 2).forEach(function (r) { addLi(r, "rec"); });
@@ -666,6 +702,7 @@ footer { font-size: .78rem; color: var(--muted); }
     Promise.all([loadMeteo(), loadVlille(), loadRealtime(), loadAlerts()]).then(function () {
       busAlertNote();
       verdict();
+      renderClocks();
       var d = new Date();
       $("when").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · mis à jour à " + hhmm(d);
     }).then(function () { busy = false; $("refresh").textContent = "Actualiser"; });
@@ -683,6 +720,7 @@ footer { font-size: .78rem; color: var(--muted); }
       requestAnimationFrame(function () { box.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" }); });
     }
   });
+  setInterval(function () { if (!document.hidden) renderClocks(); }, 15000);
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
