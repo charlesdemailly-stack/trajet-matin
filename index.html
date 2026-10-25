@@ -118,12 +118,13 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .i-bike { width: 1.5em; height: 1.5em; vertical-align: -.24em; }
 .i-warn { width: .9em; height: .9em; vertical-align: -.04em; margin: 0 .3em 0 0; }
 .i { width: 1.3em; height: 1.3em; vertical-align: -.15em; margin-top: -.2em; margin-bottom: -.2em; }
-.big .ico-off { display: block; width: .8em; height: .8em; margin: .04em 0 .16em; color: inherit; }
+.big .ico-off { display: block; width: .88em; height: .88em; margin: 0 0 .12em; color: inherit; }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
 .sub.quiet { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .meta { margin: 2px 0 0; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .next { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.links .ii { width: 1.3em; height: 1.3em; vertical-align: -.28em; margin-right: .15em; }
 .next:empty { display: none; }
 .next li { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
 .badge { display: inline-block; min-width: 2.2em; text-align: center; font-family: var(--font-display); font-weight: 700; font-size: 1rem; padding: 1px 7px; border-radius: 6px; background: var(--accent); color: var(--bg); }
@@ -233,8 +234,8 @@ footer { font-size: .78rem; color: var(--muted); }
       <div class="foot"><p class="meta" id="mMetro"></p></div>
       <ul class="msgs" id="nMetro"></ul>
       <div class="links">
-        <a href="https://www.ilevia.fr/infos-trafic" target="_blank" rel="noopener">Infos trafic Ilévia</a>
-        <a href="https://transportmel.fr/status" target="_blank" rel="noopener">Statut TransportMEL</a>
+        <a href="https://www.ilevia.fr/infos-trafic" target="_blank" rel="noopener" aria-label="Infos trafic Ilévia"><svg class="ii" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 10.8v6"/><circle cx="12" cy="7.5" r=".7" fill="currentColor"/></svg> Ilévia</a>
+        <a href="https://transportmel.fr/status" target="_blank" rel="noopener" aria-label="Statut TransportMEL"><svg class="ii" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 10.8v6"/><circle cx="12" cy="7.5" r=".7" fill="currentColor"/></svg> TransportMEL</a>
         <a href="https://x.com/mobilille_" target="_blank" rel="noopener">@mobilille_</a>
         <a href="https://x.com/TransportMel" target="_blank" rel="noopener">@TransportMel</a>
         <!-- WIDGET-COMPARAISON-BOUTON-DEBUT -->
@@ -343,7 +344,7 @@ footer { font-size: .78rem; color: var(--muted); }
   /* ---------- Horloges « temps écoulé » ---------- */
   var IC_WARN = '<svg class="i-warn" viewBox="0 0 24 24" role="img" aria-label="Attention" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2L22 20.5H2z"/><path d="M12 10v4.8"/><circle cx="12" cy="17.6" r=".5" fill="currentColor"/></svg>';
   var IC_BUS = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Bus" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M7 18v3M17 18v3"/><circle cx="8.5" cy="14.5" r=".6"/><circle cx="15.5" cy="14.5" r=".6"/></svg>', IC_BIKE = '<svg class="i i-bike" viewBox="0 0 24 24" role="img" aria-label="Vélos" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16" r="3.6"/><circle cx="18.5" cy="16" r="3.6"/><path d="M5.5 16L9.5 8h5M9.5 8l3 8M12.5 16l2-8 4 8M13.5 6h2.5M8 7h3"/></svg>', IC_METRO = '<svg class="i" viewBox="0 0 24 24" role="img" aria-label="Métro" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 16V8.5L12 13l4.5-4.5V16"/></svg>';
-  var BUS_OFF_SVG = '<svg class="ico-off" viewBox="0 0 32 32" role="img" aria-label="Aucun bus" focusable="false"><circle cx="16" cy="16" r="12.9" fill="none" stroke="currentColor" stroke-width="5.4"/><path d="M6.9 25.1L25.1 6.9" fill="none" stroke="currentColor" stroke-width="5.4" stroke-linecap="butt"/></svg>';
+  var BUS_OFF_SVG = '<svg class="ico-off" viewBox="0 0 32 32" role="img" aria-label="Aucun bus" focusable="false"><circle cx="16" cy="16" r="13.5" fill="none" stroke="currentColor" stroke-width="4.6"/><path d="M6.45 25.55L25.55 6.45" fill="none" stroke="currentColor" stroke-width="4.6" stroke-linecap="butt"/></svg>';
   var CLOCK_SVG = '<svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6V8l2.3 1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function fmtElapsed(ms) {
     var min = Math.max(1, Math.floor(ms / 60000));
