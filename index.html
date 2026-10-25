@@ -116,6 +116,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .big { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 3.1rem; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
+.sub.quiet { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .meta { margin: 2px 0 0; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .next { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
 .next li { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
@@ -209,7 +210,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
 
     <article class="card" id="cMetro" data-state="off">
-      <div class="card-head"><h2>Métro ligne 1</h2><span class="pill" id="pMetro">…</span></div>
+      <div class="card-head"><h2>Métro · ligne 1</h2><span class="pill" id="pMetro">…</span></div>
       <p class="big" id="bMetro">–</p>
       <p class="sub" id="sMetro"></p>
       <div class="foot"><p class="meta" id="mMetro"></p><span class="clock" id="kMetro"></span></div>
@@ -311,7 +312,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var big = ranges.length ? ranges.join(" · ") : "Pas de pluie";
       setCard("Meteo", state, pill, big,
         "Risque max " + Math.round(maxP) + " % · " + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm",
-        label + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
+        label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
     }).catch(function () {
       R.meteo = null;
       setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
@@ -572,6 +573,7 @@ footer { font-size: .78rem; color: var(--muted); }
   function loadAlerts() {
     return getJSON(URLS.alerts).then(function (j) {
       R.alertsReadAt = Date.now();
+      $("sMetro").className = "sub";
       var now = Date.now(), items = [], busAlerts = {}, endedRecently = [];
       (j.features || []).forEach(function (f) {
         var p = f.properties || {}, line = lineOf(p.cible);
@@ -619,13 +621,16 @@ footer { font-size: .78rem; color: var(--muted); }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) {
           setCard("Metro", "ok", "Rétabli", "Trafic rétabli", short(lastRec.msg, 200),
             "Message " + ageTxt(lastRec.start));
+          $("sMetro").className = "sub quiet";
         } else if (endedRecently.length) {
           var er = endedRecently.sort(function (x, y) { return y.end - x.end; })[0];
           setCard("Metro", "ok", "Probablement rétabli", "Fin annoncée " + hhmm(new Date(er.end)), short(er.msg, 200),
             "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée.");
+          $("sMetro").className = "sub quiet";
         } else {
           setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "Aucune perturbation en cours publiée sur la ligne 1.",
             "");
+          $("sMetro").className = "sub quiet";
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
         return;
@@ -647,6 +652,7 @@ footer { font-size: .78rem; color: var(--muted); }
       recs.slice(0, 2).forEach(function (r) { addLi(r, "rec"); });
     }).catch(function () {
       R.alerts = null;
+      $("sMetro").className = "sub";
       $("nMetro").innerHTML = "";
       setCard("Metro", "off", "Indisponible", "?", "Alertes officielles injoignables.", "Consulte les liens ci-dessous.");
     });
