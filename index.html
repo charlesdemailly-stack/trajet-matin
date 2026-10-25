@@ -376,6 +376,23 @@ footer { font-size: .78rem; color: var(--muted); }
     var ms = Math.max(0, Date.now() - LAST.meteo);
     return { ms: ms, level: !R.meteo || ms > CFG.clockMeteoBadSec * 1000 ? "bad" : ms > CFG.clockMeteoWarnSec * 1000 ? "warn" : "ok" };
   }
+  /* Titres de cartes : si le titre passe sur 2 lignes à cause de la pastille, on resserre un peu (interlettrage, puis corps) */
+  var HEAD_STEPS = [["", ""], [".09em", ""], [".06em", ""], [".04em", ""], [".04em", ".76rem"], [".03em", ".72rem"]];
+  function fitHeads() {
+    var heads = document.querySelectorAll(".card-head");
+    Array.prototype.forEach.call(heads, function (hd) {
+      var h = hd.querySelector("h2"), pill = hd.querySelector(".pill");
+      if (!h || !pill) return;
+      h.style.letterSpacing = ""; h.style.fontSize = ""; h.style.whiteSpace = "";
+      var avail = hd.clientWidth - pill.offsetWidth - 8;
+      h.style.whiteSpace = "nowrap";
+      for (var k = 0; k < HEAD_STEPS.length; k++) {
+        h.style.letterSpacing = HEAD_STEPS[k][0]; h.style.fontSize = HEAD_STEPS[k][1];
+        if (h.getBoundingClientRect().width <= avail) { if (k === 0) { h.style.whiteSpace = ""; } return; }
+      }
+      h.style.letterSpacing = ""; h.style.fontSize = ""; h.style.whiteSpace = "";
+    });
+  }
   function renderClocks() {
     var now = Date.now(), a;
     a = meteoAge();
@@ -398,6 +415,7 @@ footer { font-size: .78rem; color: var(--muted); }
       setCard("Metro", "warn", "À vérifier", "À vérifier", null, "");
     }
     verdict();
+    fitHeads();
   }
 
   /* ---------- V'Lille ---------- */
@@ -807,8 +825,8 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
-  window.addEventListener("resize", verdict);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(verdict);
+  window.addEventListener("resize", function () { verdict(); fitHeads(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); });
   refresh();
 })();
 </script>
