@@ -743,7 +743,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var parts = [];
       parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
-      parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.bus === null ? "indisponible" : "Pas de bus annoncé"));
+      parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.bus === null ? "Flux indisponible" : "Pas de bus annoncé"));
       return parts.join('<span class="sep">·</span><wbr>');
     }
     var lh = parseFloat(getComputedStyle(sub).lineHeight) || parseFloat(getComputedStyle(sub).fontSize) * 1.5;
