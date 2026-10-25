@@ -127,11 +127,20 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
 .cmp[hidden] { display: none; }
+#aBus { gap: 2px; grid-template-columns: minmax(0, 1fr); }
+#aBus li { min-width: 0; align-items: center; gap: 6px; cursor: pointer; padding: 4px 0; min-height: 28px; }
 #aBus li::before { display: none; }
-#aBus .badge { flex: none; }
-.links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; border: 2px dashed var(--muted); }
+#aBus .badge.alert { flex: none; background: transparent; color: var(--warn); border: 1px dashed var(--warn); font-size: .9rem; }
+#aBus .since { flex: none; white-space: nowrap; }
+#aBus .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#aBus li[aria-expanded="true"] { align-items: flex-start; }
+#aBus li[aria-expanded="true"] .txt { white-space: normal; overflow: visible; }
+#aBus .chev { flex: none; font-size: .7rem; transition: transform .15s; }
+#aBus li[aria-expanded="true"] .chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { #aBus .chev { transition: none; } }
+.links button#wToggle { background: transparent; font-family: inherit; cursor: pointer; border: 1px dotted var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.links a, .links button { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
+.links a, .links button { font-weight: 600; font-size: .8rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; text-decoration: none; min-height: 34px; display: inline-flex; align-items: center; }
 footer { font-size: .78rem; color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { .verdict, .card { transition: background-color .25s; } }
 </style>
@@ -549,10 +558,16 @@ footer { font-size: .78rem; color: var(--muted); }
     R.alerts.bus.forEach(function (l) {
       R.alerts.busList[l].forEach(function (a) {
         var key = l + "|" + a.msg; if (seen[key]) return; seen[key] = 1;
-        var li = document.createElement("li"), b = document.createElement("span");
-        b.className = "badge"; b.textContent = l;
-        var since = a.start ? "depuis le " + new Date(a.start).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + " · " : "";
-        li.appendChild(b); li.appendChild(document.createTextNode(since + a.msg));
+        var li = document.createElement("li"), b = document.createElement("span"), sn = document.createElement("span"), tx = document.createElement("span"), ch = document.createElement("span");
+        b.className = "badge alert"; b.textContent = "⚠︎ " + l;
+        sn.className = "since"; sn.textContent = a.start ? "depuis le " + new Date(a.start).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: TZ }) + " ·" : "";
+        tx.className = "txt"; tx.textContent = a.msg;
+        ch.className = "chev"; ch.textContent = "▾"; ch.setAttribute("aria-hidden", "true");
+        li.setAttribute("role", "button"); li.setAttribute("tabindex", "0"); li.setAttribute("aria-expanded", "false");
+        function flip() { li.setAttribute("aria-expanded", li.getAttribute("aria-expanded") === "true" ? "false" : "true"); }
+        li.addEventListener("click", flip);
+        li.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+        li.appendChild(b); if (sn.textContent) li.appendChild(sn); li.appendChild(tx); li.appendChild(ch);
         ul.appendChild(li);
       });
     });
