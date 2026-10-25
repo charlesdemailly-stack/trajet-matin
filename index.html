@@ -126,8 +126,10 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .msgs li.rec::before { background: var(--good); }
 .msgs li.old { opacity: .75; }
 .cmp { margin-top: 12px; display: grid; gap: 6px; }
+.cmp[hidden] { display: none; }
+.links button { background: transparent; font-family: inherit; cursor: pointer; border-style: dashed; }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.links a { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
+.links a, .links button { font-weight: 600; font-size: .9rem; color: var(--accent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; text-decoration: none; min-height: 40px; display: inline-flex; align-items: center; }
 footer { font-size: .78rem; color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { .verdict, .card { transition: background-color .25s; } }
 </style>
@@ -181,13 +183,16 @@ footer { font-size: .78rem; color: var(--muted); }
         <a href="https://transportmel.fr/status" target="_blank" rel="noopener">Statut TransportMEL</a>
         <a href="https://x.com/mobilille_" target="_blank" rel="noopener">@mobilille_</a>
         <a href="https://x.com/TransportMel" target="_blank" rel="noopener">@TransportMel</a>
+        <!-- WIDGET-COMPARAISON-BOUTON-DEBUT -->
+        <button type="button" id="wToggle" aria-expanded="false" aria-controls="wBox">Widget TransportMEL</button>
+        <!-- WIDGET-COMPARAISON-BOUTON-FIN -->
       </div>
-      <!-- WIDGET-COMPARAISON-DEBUT : bloc temporaire (widget TransportMEL, ligne 1 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc jusqu'à WIDGET-COMPARAISON-FIN. -->
-      <div class="cmp">
+      <!-- WIDGET-COMPARAISON-BOITE-DEBUT : bloc temporaire, masqué par défaut (widget TransportMEL, ligne 1 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc, le bouton « wToggle » ci-dessus et le script « wToggle » plus bas. -->
+      <div class="cmp" id="wBox" hidden>
         <p class="meta">Pour comparer · widget TransportMEL (ligne 1, Gare Lille Flandres). Passages théoriques ; un bandeau apparaît en cas de panne signalée.</p>
-        <iframe src="https://transportmel.fr/widget/arret?nom=Gare%20Lille%20Flandres&amp;lat=50.63769&amp;lon=3.07093&amp;lignes=M1" title="Prochains passages · Gare Lille Flandres · ligne 1" width="100%" height="320" style="border:0;border-radius:16px;max-width:520px" loading="lazy"></iframe>
+        <iframe data-src="https://transportmel.fr/widget/arret?nom=Gare%20Lille%20Flandres&amp;lat=50.63769&amp;lon=3.07093&amp;lignes=M1" title="Prochains passages · Gare Lille Flandres · ligne 1" width="100%" height="320" style="border:0;border-radius:16px;max-width:520px" loading="lazy"></iframe>
       </div>
-      <!-- WIDGET-COMPARAISON-FIN -->
+      <!-- WIDGET-COMPARAISON-BOITE-FIN -->
     </article>
   </div>
 
@@ -369,7 +374,7 @@ footer { font-size: .78rem; color: var(--muted); }
           var state = m <= 2 ? "warn" : "ok";
           setCard("Bus", state, m <= 2 ? "Imminent" : "Prochain", (m === 0 ? "Maintenant" : m + " <small>min</small>") +
             ' <span class="badge" style="vertical-align:middle;font-size:1.1rem">' + pass[0].line + "</span>", null,
-            "Passages annoncés en temps réel · arrêt Chaufour · lignes 86, 88, L5, L91");
+            "");
           var ul = $("nBus"); ul.innerHTML = "";
           pass.slice(1, 4).forEach(function (p) {
             var li = document.createElement("li");
@@ -508,7 +513,7 @@ footer { font-size: .78rem; color: var(--muted); }
             "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée · relevé à " + at);
         } else {
           setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "Aucune perturbation en cours publiée sur la ligne 1.",
-            "Données ouvertes de la Métropole, relevées à " + at + ". Une panne très récente peut ne pas y figurer encore.");
+            "Relevé à " + at + ". Une panne très récente peut ne pas y figurer encore.");
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
         return;
@@ -573,6 +578,15 @@ footer { font-size: .78rem; color: var(--muted); }
       $("when").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · mis à jour à " + hhmm(d);
     }).then(function () { busy = false; $("refresh").textContent = "Actualiser"; });
   }
+  /* Bouton du widget de comparaison (temporaire) : wToggle */
+  var wBtn = $("wToggle");
+  if (wBtn) wBtn.addEventListener("click", function () {
+    var box = $("wBox"), open = box.hidden, f = box.querySelector("iframe");
+    box.hidden = !open;
+    wBtn.setAttribute("aria-expanded", String(open));
+    wBtn.textContent = open ? "Masquer le widget" : "Widget TransportMEL";
+    if (open && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src"));
+  });
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
