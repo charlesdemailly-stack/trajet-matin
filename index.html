@@ -721,6 +721,7 @@ footer { font-size: .78rem; color: var(--muted); }
     return out;
   }
   function kind(msg) {
+    if (/ralenti/i.test(msg) && !/interromp|ne circule|arr[êe]t[ée]e?s?\b/i.test(msg)) return /reprise|r[ée]tabli|retour [àa] la normale/i.test(msg) ? "rec" : "slow";
     if (/reprise|r[ée]tabli|retour [àa] la normale|trafic normal|reprend|de nouveau desservi|à nouveau desservi|fin de l.incident/i.test(msg)) return "rec";
     if (/pas desservi|non desservi|ne sont pas desservi|n.est pas desservi|entre .{2,40} et .{2,40}|tron[cç]on|terminus|d[ée]vi/i.test(msg) &&
         !/trafic (est )?interrompu sur (toute|l.ensemble)/i.test(msg)) return "part";
@@ -765,7 +766,7 @@ footer { font-size: .78rem; color: var(--muted); }
         if (l.line_name !== "ME1") return;
         (l.alerts || []).forEach(function (a) {
           if (!a || !a.message) return;
-          out.push({ properties: { message: a.message, cible: "ILEVIA:LineRef::ME1", date_modif: String(a.date_modif || "").replace(" ", "T"), heure_fin_prevue: a.date_fin ? String(a.date_fin).replace(" ", "T") : null, _mobi: true, _closed: /^ferm/i.test(l.state || "") && (a.type || "") !== "recovery" } });
+          out.push({ properties: { message: a.message, cible: "ILEVIA:LineRef::ME1", date_modif: String(a.date_modif || "").replace(" ", "T"), heure_fin_prevue: a.date_fin ? String(a.date_fin).replace(" ", "T") : null, _mobi: true } });
         });
       });
       return out;
@@ -803,7 +804,7 @@ footer { font-size: .78rem; color: var(--muted); }
           if ((line === "M1" || line === "ME1") && now - hardEnd < 2 * 3600000 && tEnd !== null) endedRecently.push({ msg: msg, end: hardEnd });
           return;
         }
-        if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: p._closed ? "stop" : (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
+        if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
         if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") { (busAlerts[line] = busAlerts[line] || []).push({ start: start, msg: raw }); }
       });
       var hasDates = items.length > 0 && items.every(function (x) { return x.start !== null; });
@@ -851,12 +852,13 @@ footer { font-size: .78rem; color: var(--muted); }
         return;
       }
       var top = active[0];
-      var worst = active.some(function (x) { return x.kind === "stop"; }) ? "stop" : active.some(function (x) { return x.kind === "part"; }) ? "part" : "info";
+      var worst = top.kind === "slow" ? "slow" : active.some(function (x) { return x.kind === "stop"; }) ? "stop" : active.some(function (x) { return x.kind === "part"; }) ? "part" : "info";
       var stale = top.start && !top.end && now - top.start > 24 * 3600000;
       var state = worst === "stop" ? "bad" : "warn";
       if (stale) state = "warn";
-      var pill = worst === "stop" ? "Interrompu" : worst === "part" ? "Partiel" : "Information";
-      var big = worst === "stop" ? "Ligne arrêtée" : worst === "part" ? "Tronçon touché" : "À lire";
+      R.alerts.worst = worst;
+      var pill = worst === "stop" ? "Interrompu" : worst === "part" ? "Partiel" : worst === "slow" ? "Ralenti" : "Information";
+      var big = worst === "stop" ? "Ligne arrêtée" : worst === "part" ? "Tronçon touché" : worst === "slow" ? "Trafic ralenti" : "À lire";
       if (stale) { pill = "À vérifier"; big = "Ancienne alerte"; }
       var meta = [];
       if (top.start) var endIt = top.end ? top : active.filter(function (x) { return x.end; })[0], endT = endIt ? endIt.end : null;
@@ -908,14 +910,14 @@ footer { font-size: .78rem; color: var(--muted); }
     else { main.textContent = "Météo indisponible"; lvl = -1; }
     /* Transport */
     var lb = liveBus(), nb = lb.length ? lb[0] : null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
-    var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.some(function (x) { return x.kind === "stop"; });
+    var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.length && R.alerts.worst === "stop", mSlow = mAl && mAl.length && R.alerts.worst === "slow";
     var NB = "\u00a0";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
     var mQuiet = R.alerts && !mAl.length, mOld = mQuiet && metroAge().level === "bad";
     if (mOld) lvl = Math.max(lvl, 1);
     function build(compact) {
       var parts = [];
-      parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
+      parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mSlow ? IC_METRO + NB + "1 : ralenti" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       var wi = windInfo(), hwi = wi && wi.head ? '<span class="hwi">' + IC_HW[wi.head] + "</span>" : "";
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + hwi + NB + R.vlille.bikes);
       parts.push(busMin != null ? IC_BUS + NB + nb.line + (compact ? NB + ":" + NB : NB + "dans" + NB) + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.busFail ? "Flux indisponible" : "Pas de bus annoncé"));
