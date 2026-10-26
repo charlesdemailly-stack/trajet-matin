@@ -434,7 +434,7 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   function setClock(id, ms, level) {
     var el = $(id);
-    if (ms === null || ms === undefined) { el.innerHTML = CLOCK_SVG + "<span>–</span>"; el.className = "clock"; return; }
+    if (ms === null || ms === undefined) { el.innerHTML = CLOCK_SVG + "<span>–</span>"; el.className = "clock" + (level ? " t-" + level : ""); return; }
     el.innerHTML = CLOCK_SVG + "<span>" + fmtElapsed(ms) + "</span>";
     el.className = "clock" + (level ? " t-" + level : "");
   }
@@ -446,13 +446,13 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   /* Âge d'une source : { ms, level } ; level "bad" d'office si la dernière lecture a échoué */
   function metroAge() {
-    if (!R.alertsReadAt) return { ms: null, level: "" };
+    if (!R.alertsReadAt) return { ms: null, level: loadedOnce && !R.alerts ? "bad" : "" };
     var ms = Math.max(0, Date.now() - R.alertsReadAt);
     var lv = !R.alerts || ms > CFG.clockMetroBadSec * 1000 ? "bad" : ms > CFG.clockMetroWarnSec * 1000 ? "warn" : "ok";
     return { ms: ms, level: lv };
   }
   function meteoAge() {
-    if (!LAST.meteo) return { ms: null, level: "" };
+    if (!LAST.meteo) return { ms: null, level: loadedOnce && !R.meteo ? "bad" : "" };
     var ms = Math.max(0, Date.now() - LAST.meteo);
     return { ms: ms, level: !R.meteo || ms > CFG.clockMeteoBadSec * 1000 ? "bad" : ms > CFG.clockMeteoWarnSec * 1000 ? "warn" : "ok" };
   }
@@ -481,12 +481,12 @@ footer { font-size: .78rem; color: var(--muted); }
       var ms = Math.max(0, now - LAST.vlille), min = Math.floor(ms / 60000);
       var bikes = R.vlille ? R.vlille.bikes : 0, warnAt = Math.min(CFG.clockVlilleMax, Math.max(CFG.clockVlilleMin, bikes));
       a = { ms: ms, level: !R.vlille || min >= CFG.clockVlilleRed ? "bad" : min >= warnAt ? "warn" : "ok" };
-    } else a = { ms: null, level: "" };
+    } else a = { ms: null, level: loadedOnce && !R.vlille ? "bad" : "" };
     setClock("kVlille", a.ms, a.level); setStale("xVlille", a.ms, a.level);
     if (LAST.bus) {
       var mb = Math.max(0, now - LAST.bus);
       a = { ms: mb, level: !R.bus || mb > CFG.clockBusBadSec * 1000 ? "bad" : mb > CFG.clockBusWarnSec * 1000 ? "warn" : "ok" };
-    } else a = { ms: null, level: "" };
+    } else a = { ms: null, level: loadedOnce && !R.bus ? "bad" : "" };
     setClock("kBus", a.ms, a.level); setStale("xBus", a.ms, a.level);
     a = metroAge();
     setClock("kMetro", a.ms, a.level); setStale("xMetro", a.ms, a.level);
