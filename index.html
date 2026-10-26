@@ -173,8 +173,11 @@ footer .clock:empty { display: inline-flex; }
 .n-warn { color: var(--warn); }
 .n-bad { color: var(--bad); }
 .n-good { color: var(--good); }
+.next li b { font-weight: 500; } .next li .mn { font-family: var(--font-display); font-weight: 700; font-size: 1.3em; }
+#cVlille[data-state="warn"] #bVlille small { color: var(--warn); } #cVlille[data-state="bad"] #bVlille small { color: var(--bad); }
 /* Bus : badges et durées suivent le code couleur (rouge / orange / vert) ; badge plein = passage mis en valeur et premier passage vert */
 #bBus { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 .3em; }
+#bBus small { margin-left: -.2em; }
 #bBus .badge.bl { align-self: center; font-size: 1.1rem; margin-right: .1em; }
 #cBus[data-state="ok"] #bBus .n, #cBus[data-state="ok"] #bBus small { color: var(--good); }
 #cBus[data-state="warn"] #bBus small { color: var(--warn); }
@@ -668,7 +671,7 @@ footer { font-size: .78rem; color: var(--muted); }
         var li = document.createElement("li"), mm = mins(it.p);
         var kls = it.green ? "n-good" : it.k === "bad" ? "n-bad" : it.k === "warn" ? "n-warn" : "";
         li.className = "p-" + it.k + (it.green ? " p-first" : "");
-        li.innerHTML = '<span class="badge">' + it.p.line + '</span><b class="' + kls + '">' + mm + " min</b>";
+        li.innerHTML = '<span class="badge">' + it.p.line + '</span><b class="' + kls + '"><span class="mn">' + mm + "</span> min</b>";
         ul.appendChild(li);
       });
     } else if (R.busFail) {
@@ -927,7 +930,7 @@ footer { font-size: .78rem; color: var(--muted); }
     }
     else { main.textContent = "Météo indisponible"; lvl = -1; }
     /* Transport */
-    var lb = liveBus(), nb = lb.length ? lb[0] : null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
+    var lb = liveBus(), nb = lb.filter(function (p) { return Math.round((p.t - Date.now() / 1000) / 60) > CFG.walkMin; })[0] || lb[0] || null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.length && R.alerts.worst === "stop", mSlow = mAl && mAl.length && R.alerts.worst === "slow";
     var NB = "\u00a0";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
