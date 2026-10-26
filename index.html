@@ -80,10 +80,26 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-header > div { min-width: 0; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
-#when { margin: 0; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+#when { margin: 0; color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; line-height: 1.5; }
+#when .seg { white-space: nowrap; }
+#when .lead { opacity: .6; margin-right: .45em; } #when .lead.off { display: none; }
+#when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
+#when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
+.sky { width: 1.5em; height: 1.5em; flex: none; }
+#refresh { flex: none; width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+#refresh svg { width: 20px; height: 20px; }
+#refresh.spin { opacity: .6; } #refresh.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
+.hwi { display: inline-block; vertical-align: -.3em; margin: 0 1px; line-height: 0; } .hwi .hw { display: block; width: 1.45em; height: 1.45em; }
+.windline { display: flex; align-items: flex-start; gap: 7px; margin: 6px 0 0; font-weight: 600; font-size: .95rem; }
+.windline[hidden] { display: none; }
+.windline .hw { width: 1.5em; height: 1.5em; flex: none; }
+.windline.o { color: var(--warn); } .windline.r { color: var(--bad); }
+.windline .wt { display: flex; flex-direction: column; } .windline .sm { font-weight: 500; font-size: .85rem; }
+.windline .arw { display: inline-block; } .windline .ar { width: 1.1em; height: 1.1em; vertical-align: -.2em; }
 button {
   font: 600 .9rem var(--font-body);
   color: var(--accent);
@@ -186,11 +202,8 @@ footer { font-size: .78rem; color: var(--muted); }
 
 <main class="wrap">
   <header>
-    <div>
-      <h1>Trajet du matin</h1>
-      <p id="when">Chargement…</p>
-    </div>
-    <button id="refresh" type="button">Actualiser</button>
+    <p id="when">Chargement…</p>
+    <button id="refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.8 12A7.8 7.8 0 1 1 17.4 6.4"/><path d="M19.9 3.8v4.6h-4.6"/></svg></button>
   </header>
 
   <section class="verdict" id="verdict" data-level="-1" aria-live="polite">
@@ -211,6 +224,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <div class="card-head"><h2>V'Lille · Rue du Parc</h2><span class="pill" id="pVlille">…</span></div>
       <p class="big" id="bVlille">–</p>
       <p class="stale" id="xVlille"></p>
+      <div class="windline" id="wlVlille" hidden></div>
       <p class="sub" id="sVlille"></p>
       <div class="alt" id="nVlille"></div>
       <div class="foot"><p class="meta" id="mVlille"></p></div>
@@ -270,13 +284,16 @@ footer { font-size: .78rem; color: var(--muted); }
     metroRoute: "ME1",
     clockVlilleMin: 6, clockVlilleMax: 10, clockVlilleRed: 15,   /* vélo : orange à (nb de vélos borné entre min et max) minutes, rouge à clockVlilleRed minutes */
     clockMetroWarnSec: 120, clockMetroBadSec: 300,
+    routeBearing: 157.5,                                         /* cap du trajet à vélo vers la gare (SSE) */
+    windWarnKmh: 30, windWarnGust: 50, windBadKmh: 45, windBadGust: 70,   /* icône vent de la ligne du haut (toutes directions) */
+    headWarn: 15, headWarnGust: 30, headBad: 25, headBadGust: 45,         /* vent de face (composante vers la gare) : bandeau + carte Vélo */
     clockMeteoWarnSec: 1800, clockMeteoBadSec: 7200,               /* pluie : orange au-delà de 30 min, rouge au-delà de 2 h sans lecture réussie */
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     refreshMs: 60000
   };
   var URLS = {
     meteo: "https://api.open-meteo.com/v1/forecast?latitude=" + CFG.lat + "&longitude=" + CFG.lon +
-      "&hourly=temperature_2m,precipitation_probability,precipitation&timezone=Europe%2FParis&forecast_days=2",
+      "&hourly=temperature_2m,precipitation_probability,precipitation&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&forecast_days=2",
     vlille: "https://media.ilevia.fr/opendata/station_status.json",
     rt: "https://proxy.transport.data.gouv.fr/resource/ilevia-lille-gtfs-rt",
     alerts: "https://data.lillemetropole.fr/geoserver/ogc/features/v1/collections/dsp_ilevia%3Aperturbations/items?f=application%2Fgeo%2Bjson&limit=500"
@@ -328,6 +345,8 @@ footer { font-size: .78rem; color: var(--muted); }
       if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
       LAST.meteo = Date.now();
+      var cu = j.current;
+      R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
       R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
       var state = level === 2 ? "bad" : level === 1 ? "warn" : "ok";
       var pill = level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
@@ -336,9 +355,70 @@ footer { font-size: .78rem; color: var(--muted); }
         "Risque max " + Math.round(maxP) + " % · " + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm",
         label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
     }).catch(function () {
-      R.meteo = null;
+      R.meteo = null; R.cur = null;
       setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
     });
+  }
+
+  /* ---------- Pictogrammes météo et vent ---------- */
+  var SKY = {"clearDay": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Ciel dégagé\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"4.2\"/><path d=\"M17.80 12.00L20.10 12.00\"/><path d=\"M6.20 12.00L3.90 12.00\"/><path d=\"M12.00 17.80L12.00 20.10\"/><path d=\"M12.00 6.20L12.00 3.90\"/><path d=\"M16.10 16.10L17.73 17.73\"/><path d=\"M7.90 16.10L6.27 17.73\"/><path d=\"M16.10 7.90L17.73 6.27\"/><path d=\"M7.90 7.90L6.27 6.27\"/></svg>", "clearNight": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Ciel dégagé\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 14.2A8.3 8.3 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z\"/></svg>", "partDay": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Peu nuageux\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><mask id=\"mkd\" maskUnits=\"userSpaceOnUse\" x=\"0\" y=\"0\" width=\"24\" height=\"24\"><rect width=\"24\" height=\"24\" fill=\"#fff\"/><path d=\"M10.5 20h7.2a3.5 3.5 0 0 0 .4-7 4.7 4.7 0 0 0-9 1.1A3 3 0 0 0 10.5 20z\" fill=\"#000\" stroke=\"#000\" stroke-width=\"4.4\" stroke-linejoin=\"round\"/></mask><g mask=\"url(#mkd)\"><circle cx=\"8.6\" cy=\"8.6\" r=\"3.1\"/><path d=\"M13.30 8.60L15.00 8.60\"/><path d=\"M3.90 8.60L2.20 8.60\"/><path d=\"M8.60 13.30L8.60 15.00\"/><path d=\"M8.60 3.90L8.60 2.20\"/><path d=\"M11.92 11.92L13.13 13.13\"/><path d=\"M5.28 11.92L4.07 13.13\"/><path d=\"M11.92 5.28L13.13 4.07\"/><path d=\"M5.28 5.28L4.07 4.07\"/></g><path d=\"M10.5 20h7.2a3.5 3.5 0 0 0 .4-7 4.7 4.7 0 0 0-9 1.1A3 3 0 0 0 10.5 20z\"/></svg>", "partNight": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Peu nuageux\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><mask id=\"mkn\" maskUnits=\"userSpaceOnUse\" x=\"0\" y=\"0\" width=\"24\" height=\"24\"><rect width=\"24\" height=\"24\" fill=\"#fff\"/><path d=\"M10.5 20h7.2a3.5 3.5 0 0 0 .4-7 4.7 4.7 0 0 0-9 1.1A3 3 0 0 0 10.5 20z\" fill=\"#000\" stroke=\"#000\" stroke-width=\"4.4\" stroke-linejoin=\"round\"/></mask><g mask=\"url(#mkn)\"><path d=\"M20 14.2A8.3 8.3 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z\" transform=\"translate(-2.2 -2.6) scale(.82)\"/></g><path d=\"M10.5 20h7.2a3.5 3.5 0 0 0 .4-7 4.7 4.7 0 0 0-9 1.1A3 3 0 0 0 10.5 20z\"/></svg>", "cloud": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Nuageux\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 18.5h9.2a4.1 4.1 0 0 0 .5-8.17 5.6 5.6 0 0 0-10.7 1.3A3.5 3.5 0 0 0 7.5 18.5z\"/></svg>", "fog": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Brouillard\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 13.5h9a3.6 3.6 0 0 0 .4-7.2A5 5 0 0 0 7.4 7.5a3.1 3.1 0 0 0 .1 6z\"/><path d=\"M4.5 17h15M7 20.2h10\"/></svg>", "drizzle": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Bruine\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z\"/><path d=\"M9 18.2v.01M13 17.2v.01M16.5 18.2v.01M11 21v.01M15 21v.01\" stroke-width=\"2.4\"/></svg>", "rain": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Pluie\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z\"/><path d=\"M8.6 17.5l-1.2 3M12.6 17.5l-1.2 3M16.6 17.5l-1.2 3\"/></svg>", "heavy": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Forte pluie\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z\"/><path d=\"M7.4 17l-1.5 3.6M11 17l-1.5 3.6M14.6 17l-1.5 3.6M18.2 17l-1.5 3.6\"/></svg>", "thunder": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Orage\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z\"/><path d=\"M12.8 15.4l-2.4 3.2h3l-1.8 3.4\"/></svg>", "snow": "<svg class=\"sky\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Neige\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z\"/><path d=\"M8.5 18.5v.01M12 20.5v.01M15.5 18.5v.01M12 17v.01M8.5 21.5v.01M15.5 21.5v.01\" stroke-width=\"2.4\"/></svg>"};
+  var IC_WIND = '<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="Vent" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>';
+  var IC_HW = {"1": "<svg class=\"hw\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Vent de face\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><g transform=\"translate(24 0) scale(-1 1)\"><path d=\"M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2\"/><path d=\"M9.6 4.6A2 2 0 1 1 11 8H2\"/></g></svg>", "2": "<svg class=\"hw\" viewBox=\"0 0 24 24\" role=\"img\" aria-label=\"Vent de face\" focusable=\"false\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><g transform=\"translate(24 0) scale(-1 1)\"><path d=\"M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2\"/><path d=\"M9.6 4.6A2 2 0 1 1 11 8H2\"/><path d=\"M12.6 19.4A2 2 0 1 0 14 16H2\"/></g></svg>"};
+  var IC_ARROW = '<svg class="ar" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4M6.5 9.5L12 4l5.5 5.5"/></svg>';
+  function skyKey(code, day) {
+    if (code === 0 || code === 1) return day ? "clearDay" : "clearNight";
+    if (code === 2) return day ? "partDay" : "partNight";
+    if (code === 3) return "cloud";
+    if (code === 45 || code === 48) return "fog";
+    if ([51, 53, 55, 56, 57, 61].indexOf(code) >= 0) return "drizzle";
+    if ([63, 66, 67, 80].indexOf(code) >= 0) return "rain";
+    if ([65, 81, 82].indexOf(code) >= 0) return "heavy";
+    if ([71, 73, 75, 77, 85, 86].indexOf(code) >= 0) return "snow";
+    if (code >= 95) return "thunder";
+    return "cloud";
+  }
+  var COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSO", "SO", "OSO", "O", "ONO", "NO", "NNO"];
+  /* Vent du moment : niveau « notable » (vitesse seule) et niveau « de face » (composante vers la gare) */
+  function windInfo() {
+    var c = R.cur; if (!c || c.wind == null) return null;
+    var sp = c.wind, gu = Math.max(c.gust || 0, sp), rad = (c.dir - CFG.routeBearing) * Math.PI / 180, k = Math.cos(rad);
+    var note = (sp >= CFG.windBadKmh || gu >= CFG.windBadGust) ? 2 : (sp >= CFG.windWarnKmh || gu >= CFG.windWarnGust) ? 1 : 0;
+    var comp = sp * k, gcomp = gu * k, head = 0;
+    if (k > 0) head = (comp >= CFG.headBad || gcomp >= CFG.headBadGust) ? 2 : (comp >= CFG.headWarn || gcomp >= CFG.headWarnGust) ? 1 : 0;
+    return { sp: sp, gust: gu, dir: c.dir, note: note, head: head };
+  }
+  function renderWindCard() {
+    var el = $("wlVlille"), w = windInfo();
+    if (!w || !w.head) { el.hidden = true; el.className = "windline"; return; }
+    var to = (w.dir + 180) % 360;
+    el.hidden = false; el.className = "windline " + (w.head === 2 ? "r" : "o");
+    el.innerHTML = IC_HW[w.head] + '<span class="wt"><span>' + (w.head === 2 ? "Fort vent" : "Vent") + ' de face vers la gare</span><span class="sm">' +
+      Math.round(w.sp) + " km/h · de " + COMPASS[Math.round(w.dir / 22.5) % 16] + ' <span class="arw" style="transform:rotate(' + Math.round(to) + 'deg)">' + IC_ARROW + "</span>" +
+      (w.gust >= w.sp + 8 ? " · rafales " + Math.round(w.gust) : "") + "</span></span>";
+  }
+  /* Masque le « · » en début de ligne quand le texte passe à la ligne */
+  function fixLeads() {
+    var segs = $("when").querySelectorAll(".seg"), leads = $("when").querySelectorAll(".lead");
+    Array.prototype.forEach.call(leads, function (l) { l.classList.remove("off"); });
+    var prevTop = null;
+    Array.prototype.forEach.call(segs, function (sg) {
+      var top = Math.round(sg.getBoundingClientRect().top), l = sg.querySelector(".lead");
+      if (prevTop !== null && top > prevTop + 10 && l) l.classList.add("off");
+      prevTop = top;
+    });
+  }
+  function renderWhen(d) {
+    var L = '<span class="lead">·</span>';
+    var parts = ['<span class="seg">' + d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + "</span>"];
+    var c = R.cur;
+    if (c && c.temp != null) {
+      parts.push('<span class="seg meteo">' + L + SKY[skyKey(c.code, c.day)] + "<b>" + Math.round(c.temp) + "°</b></span>");
+      var w = windInfo();
+      if (w && w.note) parts.push('<span class="seg meteo ' + (w.note === 2 ? "r" : "o") + '" title="Vent ' + Math.round(w.sp) + " km/h, rafales " + Math.round(w.gust) + '">' + L + IC_WIND + "<b>" + Math.round(w.sp) + "</b></span>");
+    }
+    parts.push('<span class="seg">' + L + "mis à jour à " + hhmm(d) + "</span>");
+    $("when").innerHTML = parts.join(" ");
+    fixLeads();
   }
 
   /* ---------- Horloges « temps écoulé » ---------- */
@@ -779,7 +859,8 @@ footer { font-size: .78rem; color: var(--muted); }
     function build(compact) {
       var parts = [];
       parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
-      if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + NB + R.vlille.bikes);
+      var wi = windInfo(), hwi = wi && wi.head ? '<span class="hwi">' + IC_HW[wi.head] + "</span>" : "";
+      if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + hwi + NB + R.vlille.bikes);
       parts.push(busMin != null ? IC_BUS + NB + R.bus.next.line + (compact ? " : " : " dans ") + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.bus === null ? "Flux indisponible" : "Pas de bus annoncé"));
       return parts.join('<span class="sep">·</span><wbr>');
     }
@@ -799,14 +880,14 @@ footer { font-size: .78rem; color: var(--muted); }
   var busy = false;
   function refresh() {
     if (busy) return; busy = true;
-    $("refresh").textContent = "…";
+    $("refresh").classList.add("spin"); $("refresh").setAttribute("aria-busy", "true");
     Promise.all([loadMeteo(), loadVlille(), loadRealtime(), loadAlerts()]).then(function () {
       loadedOnce = true;
       busAlertNote();
       renderClocks();
-      var d = new Date();
-      $("when").textContent = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + " · mis à jour à " + hhmm(d);
-    }).then(function () { busy = false; $("refresh").textContent = "Actualiser"; });
+      renderWindCard();
+      renderWhen(new Date());
+    }).then(function () { busy = false; $("refresh").classList.remove("spin"); $("refresh").removeAttribute("aria-busy"); });
   }
   /* Bouton du widget de comparaison (temporaire) : wToggle */
   var wBtn = $("wToggle");
@@ -825,7 +906,7 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
-  window.addEventListener("resize", function () { verdict(); fitHeads(); });
+  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); });
   refresh();
 })();
