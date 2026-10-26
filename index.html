@@ -690,7 +690,7 @@ footer { font-size: .78rem; color: var(--muted); }
 
   /* ---------- Alertes officielles (données ouvertes de la Métropole) ---------- */
   function cleanMsg(s) {
-    return String(s || "").replace(/[​‌‍﻿]/g, "").replace(/\s+/g, " ").trim();
+    return String(s || "").replace(/[​‌‍﻿]/g, "").replace(/\s+/g, " ").replace(/\s*\b\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?/g, "").trim();
   }
   function lineOf(cible) { return String(cible || "").replace("ILEVIA:LineRef::", "").replace(":LOC", ""); }
   /* Les horodatages de la Métropole portent « Z » (UTC) mais correspondent à l'heure de Paris : on les relit comme tels */
@@ -746,7 +746,7 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   /* « jusqu'à 9h45 environ », « jusque 09h 40 » : heure de fin annoncée dans le texte (heure de Paris) */
   function textEnd(msg, ref) {
-    var m = /jusqu[’'e]?\s*(?:[àa]\s*)?(\d{1,2})\s*h\s*(\d{2})?/i.exec(msg);
+    var m = /jusqu[’'e]?\s*(?:[àa]\s*)?(\d{1,2})\s*h(?:\s?(\d{2})(?![\d\/:]))?/i.exec(msg);
     if (!m || ref === null) return null;
     var H = parseInt(m[1], 10), M = m[2] ? parseInt(m[2], 10) : 0;
     if (H > 23 || M > 59) return null;
@@ -829,8 +829,10 @@ footer { font-size: .78rem; color: var(--muted); }
       var big = worst === "stop" ? "Ligne arrêtée" : worst === "part" ? "Tronçon touché" : "À lire";
       if (stale) { pill = "À vérifier"; big = "Ancienne alerte"; }
       var meta = [];
+      if (top.start) var endIt = top.end ? top : active.filter(function (x) { return x.end; })[0], endT = endIt ? endIt.end : null;
+      if (endT) { var ed = new Date(endT), eh = hhmm(ed).split(":"); meta.push("Reprise estimée ~" + parseInt(eh[0], 10) + "h" + (eh[1] === "00" ? "" : eh[1])); }
+      else meta.push("Reprise non précisée");
       if (top.start) meta.push("Mis à jour " + ageTxt(top.start));
-      meta.push(top.end ? "Fin prévue : " + whenTxt(top.end) : "Fin non précisée");
       if (R.alerts.uncertain) meta.push("une reprise est annoncée, à confirmer");
       setCard("Metro", state, pill, big, short(top.msg, 260), meta.join(" · "));
       active.slice(1, 4).forEach(function (a2) { addLi(a2, stale ? "old" : ""); });
