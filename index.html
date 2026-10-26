@@ -173,6 +173,22 @@ footer .clock:empty { display: inline-flex; }
 .n-warn { color: var(--warn); }
 .n-bad { color: var(--bad); }
 .n-good { color: var(--good); }
+/* Bus : badges et durées suivent le code couleur (rouge / orange / vert) ; badge plein = passage mis en valeur et premier passage vert */
+#bBus { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 .3em; }
+#bBus .badge.bl { align-self: center; font-size: 1.1rem; margin-right: .1em; }
+#cBus[data-state="ok"] #bBus .n, #cBus[data-state="ok"] #bBus small { color: var(--good); }
+#cBus[data-state="warn"] #bBus small { color: var(--warn); }
+#cBus[data-state="bad"] #bBus small { color: var(--bad); }
+#cBus[data-state="ok"] .badge.bl { background: var(--good); color: var(--surface); }
+#cBus[data-state="warn"] .badge.bl { background: var(--warn); color: var(--surface); }
+#cBus[data-state="bad"] .badge.bl { background: var(--bad); color: var(--surface); }
+.next li.p-ok b { color: var(--good); }
+.next li .badge { background: transparent; box-shadow: inset 0 0 0 2px var(--ink); color: var(--ink); }
+.next li.p-ok .badge { box-shadow: inset 0 0 0 2px var(--good); color: var(--good); }
+.next li.p-warn .badge { box-shadow: inset 0 0 0 2px var(--warn); color: var(--warn); }
+.next li.p-bad .badge { box-shadow: inset 0 0 0 2px var(--bad); color: var(--bad); }
+.next li.p-first .badge { background: var(--good); box-shadow: none; color: var(--surface); }
+
 .next li b { font-weight: 700; }
 #wBox { scroll-margin-bottom: 90px; }
 #aBus { gap: 2px; grid-template-columns: minmax(0, 1fr); }
@@ -636,8 +652,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var m = mins(pass[0]), c = cls(m);
       var pill = c === "bad" ? "Imminent" : c === "warn" ? "Pars maintenant" : "Prochain";
       var nc = c === "bad" ? "n-bad" : c === "warn" ? "n-warn" : "";
-      setCard("Bus", c, pill, '<span class="n ' + nc + '">' + (m === 0 ? "Maintenant" : m) + "</span>" + (m === 0 ? "" : " <small>min</small>") +
-        ' <span class="badge" style="vertical-align:middle;font-size:1.1rem">' + pass[0].line + "</span>", null, "");
+      setCard("Bus", c, pill, '<span class="badge bl">' + pass[0].line + '</span><span class="n ' + nc + '">' + (m === 0 ? "Maintenant" : m) + "</span>" + (m === 0 ? "" : "<small>min</small>"), null, "");
       var ul = $("nBus"); ul.innerHTML = "";
       var rest = pass.slice(1), shown = [];
       /* toujours au moins 3 lignes sous le gros chiffre (4 passages en tout) ; si le premier bus est rouge/orange, on prolonge jusqu'au premier passage confortable (vert), 5 lignes au maximum */
@@ -652,6 +667,7 @@ footer { font-size: .78rem; color: var(--muted); }
       shown.forEach(function (it) {
         var li = document.createElement("li"), mm = mins(it.p);
         var kls = it.green ? "n-good" : it.k === "bad" ? "n-bad" : it.k === "warn" ? "n-warn" : "";
+        li.className = "p-" + it.k + (it.green ? " p-first" : "");
         li.innerHTML = '<span class="badge">' + it.p.line + '</span><b class="' + kls + '">' + mm + " min</b>";
         ul.appendChild(li);
       });
