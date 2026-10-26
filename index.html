@@ -84,7 +84,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
 #when { margin: 0; color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; line-height: 1.5; }
 #when .seg { white-space: nowrap; }
-#when .lead { margin-right: .45em; } #when .lead.off { display: none; }
+#when .lead { margin-right: .3em; } #when .seg.ic .lead { margin-right: .17em; } #when .lead.off { display: none; }
 #when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
 #when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
 .sky { width: 1.5em; height: 1.5em; flex: none; }
@@ -414,13 +414,15 @@ footer { font-size: .78rem; color: var(--muted); }
     var parts = ['<span class="seg">' + d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + "</span>"];
     var c = R.cur;
     if (c && c.temp != null) {
-      parts.push('<span class="seg">' + L + '<span class="meteo">' + SKY[skyKey(c.code, c.day)] + "<b>" + Math.round(c.temp) + "°</b></span></span>");
+      parts.push('<span class="seg ic">' + L + '<span class="meteo">' + SKY[skyKey(c.code, c.day)] + "<b>" + Math.round(c.temp) + "°</b></span></span>");
       var w = windInfo();
-      if (w && w.note) parts.push('<span class="seg">' + L + '<span class="meteo ' + (w.note === 2 ? "r" : "o") + '" title="Vent ' + Math.round(w.sp) + " km/h, rafales " + Math.round(w.gust) + '">' + IC_WIND + "<b>" + Math.round(w.sp) + "</b></span></span>");
+      if (w && w.note) parts.push('<span class="seg ic">' + L + '<span class="meteo ' + (w.note === 2 ? "r" : "o") + '" title="Vent ' + Math.round(w.sp) + " km/h, rafales " + Math.round(w.gust) + '">' + IC_WIND + "<b>" + Math.round(w.sp) + "</b></span></span>");
     }
-    parts.push('<span class="seg">' + L + "mis à jour à " + hhmm(d) + "</span>");
-    $("when").innerHTML = parts.join(" ");
-    fixLeads();
+    var w = $("when");
+    function put(txt) { w.innerHTML = parts.concat(['<span class="seg">' + L + txt + hhmm(d) + "</span>"]).join(" "); fixLeads(); }
+    put("mis à jour à ");
+    /* si tout ne tient pas sur une ligne : « MAJ à » */
+    if (w.getBoundingClientRect().height > parseFloat(getComputedStyle(w).lineHeight) * 1.5) put("MAJ à ");
   }
 
   /* ---------- Horloges « temps écoulé » ---------- */
