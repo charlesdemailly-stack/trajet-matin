@@ -10,7 +10,7 @@
 <body style="margin:0">
 <title>Trajet du matin</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <style>
 /* Concept : écran de signalétique de station, un verdict en haut, quatre cartes à lire en un regard. */
 :root {
@@ -136,6 +136,8 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .i { width: 1.3em; height: 1.3em; vertical-align: -.15em; margin-top: -.2em; margin-bottom: -.2em; }
 .big .ico-off { display: inline-block; width: .7em; height: .7em; margin: 0; vertical-align: baseline; color: inherit; }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
+.big small.n-warn { color: var(--warn); }
+.big small.n-bad { color: var(--bad); }
 .sub { margin: 0; font-size: 1rem; }
 .sub.quiet { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .meta { margin: 2px 0 0; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -189,7 +191,8 @@ footer .clock:empty { display: inline-flex; }
 .next li.p-bad .badge { box-shadow: inset 0 0 0 2px var(--bad); color: var(--bad); }
 .next li.p-first .badge { background: var(--good); box-shadow: none; color: var(--surface); }
 
-.next li b { font-weight: 700; }
+.next li b { font-weight: 600; }
+.next li b:not([class]) { font-weight: 700; } /* essai : minutes en gras pour les passages non mis en valeur */
 #wBox { scroll-margin-bottom: 90px; }
 #aBus { gap: 2px; grid-template-columns: minmax(0, 1fr); }
 #aBus li { min-width: 0; align-items: center; gap: 6px; cursor: pointer; padding: 4px 0; min-height: 28px; }
@@ -533,7 +536,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 3 ? "Presque vide" : "Disponible";
       R.vlille = { bikes: bikes, off: off, at: (st.last_reported || j.last_updated) * 1000 };
       LAST.vlille = R.vlille.at;
-      var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
+      var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small class=\"" + nClass(bikes) + "\">vélo" + (bikes > 1 ? "s" : "") + "</small>";
       setCard("Vlille", state, pill, big, "", "");
       /* stations voisines, seulement si la station principale est presque vide */
       var box = $("nVlille"); box.innerHTML = "";
@@ -927,7 +930,8 @@ footer { font-size: .78rem; color: var(--muted); }
     }
     else { main.textContent = "Météo indisponible"; lvl = -1; }
     /* Transport */
-    var lb = liveBus(), nb = lb.length ? lb[0] : null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
+    /* bandeau : prochain bus accessible (plus de walkMin minutes, donc orange ou vert), pas le prochain tout court ; aucune couleur de la carte Bus ici */
+    var lb = liveBus().filter(function (p) { return Math.max(0, Math.round((p.t - Date.now() / 1000) / 60)) > CFG.walkMin; }), nb = lb.length ? lb[0] : null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.length && R.alerts.worst === "stop", mSlow = mAl && mAl.length && R.alerts.worst === "slow";
     var NB = "\u00a0";
     if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
@@ -938,7 +942,7 @@ footer { font-size: .78rem; color: var(--muted); }
       parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mSlow ? IC_METRO + NB + "1 : ralenti" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       var wi = windInfo(), hwi = wi && wi.head ? '<span class="hwi">' + IC_HW[wi.head] + "</span>" : "";
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + hwi + NB + R.vlille.bikes);
-      parts.push(busMin != null ? IC_BUS + NB + nb.line + (compact ? NB + ":" + NB : NB + "dans" + NB) + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.busFail ? "Flux indisponible" : "Pas de bus annoncé"));
+      parts.push(busMin != null ? IC_BUS + NB + nb.line + (compact ? NB + ":" + NB : NB + "dans" + NB) + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.busFail ? "Flux indisponible" : liveBus().length ? "Pas de bus accessible" : "Pas de bus annoncé"));
       if (busMin != null && R.busFail) parts.push("Flux" + NB + "indisponible");
       return parts.join('<span class="sep">·</span><wbr>');
     }
