@@ -266,7 +266,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : Open-Meteo, V'Lille, Ilévia et alertes de la Métropole (open data MEL). Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
+  <footer>Données : Open-Meteo, V'Lille, Ilévia alertes de la Métropole (open data MEL) et MobiLille. Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
@@ -297,6 +297,7 @@ footer { font-size: .78rem; color: var(--muted); }
       "&hourly=temperature_2m,precipitation_probability,precipitation&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&forecast_days=2",
     vlille: "https://media.ilevia.fr/opendata/station_status.json",
     rt: "https://proxy.transport.data.gouv.fr/resource/ilevia-lille-gtfs-rt",
+    mobi: "https://api.mobilille.fr/v2/lines/?agency=ILE",
     alerts: "https://data.lillemetropole.fr/geoserver/ogc/features/v1/collections/dsp_ilevia%3Aperturbations/items?f=application%2Fgeo%2Bjson&limit=500"
   };
   var TZ = "Europe/Paris";
@@ -691,7 +692,7 @@ footer { font-size: .78rem; color: var(--muted); }
 
   /* ---------- Alertes officielles (données ouvertes de la Métropole) ---------- */
   function cleanMsg(s) {
-    return String(s || "").replace(/[​‌‍﻿]/g, "").replace(/\s+/g, " ").replace(/\s*\b\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?/g, "").trim();
+    return String(s || "").replace(/[​‌‍﻿]/g, "").replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, "").replace(/\s+/g, " ").replace(/\s*\b\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?/g, "").trim();
   }
   function lineOf(cible) { return String(cible || "").replace("ILEVIA:LineRef::", "").replace(":LOC", ""); }
   /* Les horodatages de la Métropole portent « Z » (UTC) mais correspondent à l'heure de Paris : on les relit comme tels */
@@ -747,7 +748,7 @@ footer { font-size: .78rem; color: var(--muted); }
   }
   /* « jusqu'à 9h45 environ », « jusque 09h 40 » : heure de fin annoncée dans le texte (heure de Paris) */
   function textEnd(msg, ref) {
-    var m = /jusqu[’'e]?\s*(?:[àa]\s*)?(\d{1,2})\s*h(?:\s?(\d{2})(?![\d\/:]))?/i.exec(msg);
+    var m = /jusqu[’'e]?\s*(?:[àa]\s*)?(\d{1,2})\s*[h:](?:\s?(\d{2})(?![\d\/:]))?/i.exec(msg);
     if (!m || ref === null) return null;
     var H = parseInt(m[1], 10), M = m[2] ? parseInt(m[2], 10) : 0;
     if (H > 23 || M > 59) return null;
@@ -756,8 +757,36 @@ footer { font-size: .78rem; color: var(--muted); }
     if (t < ref - 5 * 60000) t += 24 * 3600000;
     return t;
   }
+  /* MobiLille : alertes du métro 1, plus récentes que le flux de la Métropole. Elles remplacent les alertes M1 plus anciennes du flux MEL. */
+  function mobiFeatures() {
+    return getJSON(URLS.mobi).then(function (j) {
+      var lines = (j && j[0] && j[0].lines) || [], out = [];
+      lines.forEach(function (l) {
+        if (l.line_name !== "ME1") return;
+        (l.alerts || []).forEach(function (a) {
+          if (!a || !a.message) return;
+          out.push({ properties: { message: a.message, cible: "ILEVIA:LineRef::ME1", date_modif: String(a.date_modif || "").replace(" ", "T"), heure_fin_prevue: a.date_fin ? String(a.date_fin).replace(" ", "T") : null, _mobi: true, _closed: /^ferm/i.test(l.state || "") && (a.type || "") !== "recovery" } });
+        });
+      });
+      return out;
+    }).catch(function () { return []; });
+  }
   function loadAlerts() {
-    return getJSON(URLS.alerts).then(function (j) {
+    return Promise.all([getJSON(URLS.alerts).catch(function () { return null; }), mobiFeatures()]).then(function (rs) {
+      var j = rs[0], mobi = rs[1];
+      if (!j && !mobi.length) throw new Error("alerts");
+      j = j || { features: [] };
+      if (mobi.length) {
+        var newest = 0;
+        mobi.forEach(function (f) { var t = wallTime(f.properties.date_modif); if (t !== null && t > newest) newest = t; });
+        j = { features: (j.features || []).filter(function (f) {
+          var p = f.properties || {}, ln = lineOf(p.cible);
+          if (ln !== "M1" && ln !== "ME1") return true;
+          if (kind(cleanMsg(p.message)) === "rec") return true;
+          var t = pickDate(p);
+          return t !== null && t > newest;
+        }).concat(mobi) };
+      }
       R.alertsReadAt = Date.now();
       $("sMetro").className = "sub";
       var now = Date.now(), items = [], busAlerts = {}, endedRecently = [];
@@ -774,7 +803,7 @@ footer { font-size: .78rem; color: var(--muted); }
           if ((line === "M1" || line === "ME1") && now - hardEnd < 2 * 3600000 && tEnd !== null) endedRecently.push({ msg: msg, end: hardEnd });
           return;
         }
-        if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
+        if (line === "M1" || line === "ME1") items.push({ msg: msg, end: tEnd, start: start, kind: p._closed ? "stop" : (function (k) { return k === "info" && p.type_perturbation === "Perturbation" ? "part" : k; })(kind(msg)), words: words(msg) });
         if (CFG.busRoutes.indexOf(line) >= 0 && kind(msg) !== "rec") { (busAlerts[line] = busAlerts[line] || []).push({ start: start, msg: raw }); }
       });
       var hasDates = items.length > 0 && items.every(function (x) { return x.start !== null; });
