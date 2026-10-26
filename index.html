@@ -84,7 +84,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
 #when { margin: 0; color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; line-height: 1.5; }
 #when .seg { white-space: nowrap; }
-#when .lead { display: inline-block; opacity: .75; margin-right: .45em; font-weight: 700; line-height: 1; vertical-align: .12em; } #when .lead.off { display: none; }
+#when .lead { margin-right: .45em; } #when .lead.off { display: none; }
 #when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
 #when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
 .sky { width: 1.5em; height: 1.5em; flex: none; }
@@ -93,7 +93,7 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; lett
 #refresh.spin { opacity: .6; } #refresh.spin svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
-.hwi { display: inline-block; vertical-align: -.22em; margin: 0 1px; line-height: 0; } .hwi .hw { display: block; width: 1.2em; height: 1.2em; }
+.hwi { display: inline-block; vertical-align: -.16em; margin: 0 1px; line-height: 0; } .hwi .hw { display: block; width: 1em; height: 1em; }
 .windline { display: flex; align-items: flex-start; gap: 7px; margin: 6px 0 0; font-weight: 600; font-size: .95rem; }
 .windline[hidden] { display: none; }
 .windline .hw { width: 1.5em; height: 1.5em; flex: none; }
