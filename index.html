@@ -141,7 +141,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .big .rlead { margin-right: .1em; } .big .rlead.off { display: none; }
 .mi { white-space: nowrap; }
 .mi.o, .mi.o svg { color: var(--warn); } .mi.r, .mi.r svg { color: var(--bad); }
-.tg { white-space: nowrap; } .tlead.off { display: none; }
+.tg { white-space: nowrap; } .tv { font-weight: 700; } .tv .deg { font-size: .75em; vertical-align: .12em; margin-left: .03em; } .tlead.off { display: none; }
 .mi svg { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: .25em; color: var(--muted); }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
@@ -176,6 +176,7 @@ footer .clock:empty { display: inline-flex; }
 .clock.t-bad { color: var(--bad); }
 .alt { display: grid; gap: 2px; margin-top: 6px; font-size: .85rem; color: var(--muted); }
 .alt:empty { display: none; }
+.strike { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 .alt .row { display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .alt b, .big .n { font-variant-numeric: tabular-nums; }
 .n-warn { color: var(--warn); }
@@ -248,12 +249,12 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
 
     <article class="card" id="cVlille" data-state="off">
-      <div class="card-head"><h2>V'Lille · Rue du Parc</h2><span class="pill" id="pVlille">…</span></div>
+      <div class="card-head"><h2>V'Lille · <span id="hVlille">Rue du Parc</span></h2><span class="pill" id="pVlille">…</span></div>
       <p class="big" id="bVlille">–</p>
       <p class="stale" id="xVlille"></p>
-      <div class="windline" id="wlVlille" hidden></div>
       <p class="sub" id="sVlille"></p>
       <div class="alt" id="nVlille"></div>
+      <div class="windline" id="wlVlille" hidden></div>
       <div class="foot"><p class="meta" id="mVlille"></p></div>
     </article>
 
@@ -365,12 +366,13 @@ footer { font-size: .78rem; color: var(--muted); }
     var lo = pts[0], hi = pts[0];
     pts.forEach(function (o) { if (o.v < lo.v) lo = o; if (o.v > hi.v) hi = o; });
     var seg = function (txt) { return ' <span class="tg"><span class="tlead">·</span> ' + txt + "</span>"; };
-    if (hi.v - lo.v < CFG.tempStableDelta) return head + seg("Température stable, " + Math.round((hi.v + lo.v) / 2) + "°");
+    var dg = function (v) { return '<b class="tv">' + Math.round(v) + '<span class="deg">°</span></b>'; };
+    if (hi.v - lo.v < CFG.tempStableDelta) return head + seg("Température stable, " + dg((hi.v + lo.v) / 2));
     var list = [{ k: "min", o: lo }, { k: "max", o: hi }].sort(function (a, b) { return a.o.h - b.o.h; });
     var out = head;
     list.forEach(function (e) {
       if (label === "aujourd'hui" && e.o.h === nowHour) return;
-      out += seg(e.k + " " + Math.round(e.o.v) + "° à " + e.o.h + "h");
+      out += seg(e.k + " " + dg(e.o.v) + " à " + e.o.h + "h");
     });
     return out;
   }
@@ -606,6 +608,7 @@ footer { font-size: .78rem; color: var(--muted); }
       LAST.vlille = R.vlille.at; LAST.ok = Date.now();
       var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
       setCard("Vlille", state, pill, big, "", "");
+      $("hVlille").className = !off && bikes === 0 ? "strike" : "";
       /* stations voisines, seulement si la station principale est presque vide */
       var box = $("nVlille"); box.innerHTML = "";
       function row(list) {
@@ -618,7 +621,9 @@ footer { font-size: .78rem; color: var(--muted); }
         var div = document.createElement("div"); div.className = "row";
         items.forEach(function (it) {
           var sp = document.createElement("span");
-          sp.appendChild(document.createTextNode(it.label + " "));
+          var nm = document.createElement("span"); nm.textContent = it.label;
+          if (!it.out && it.n === 0) nm.className = "strike";
+          sp.appendChild(nm); sp.appendChild(document.createTextNode(" "));
           var b = document.createElement("b");
           b.textContent = it.out ? "hors service" : String(it.n);
           if (!it.out) b.className = nClass(it.n);
