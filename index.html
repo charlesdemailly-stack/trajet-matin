@@ -866,6 +866,33 @@ footer { font-size: .78rem; color: var(--muted); }
       return out;
     }).catch(function () { return []; });
   }
+  /* ---------- Fréquence théorique du métro (ligne 1) ----------
+     Source : GTFS Ilévia, horaires de la gare Lille Flandres (les deux sens ; 4 Cantons : mêmes fréquences à ±0,5 min).
+     Valable jusqu'au 31/12/2026 ; au-delà, on retombe sur le profil du même jour de semaine. */
+  var METRO_FREQ = {"v":{"17cc":{"m":[null,null,null,null,null,8.0,4.6,2.7,2.8,4.2,4.5,4.1,4.0,4.0,4.0,3.6,2.7,2.7,2.8,3.7,4.5,4.5,5.8,6.0,6.0,null],"f":309,"l":1470},"5c4d":{"m":[null,null,null,null,null,8.0,4.6,2.7,2.8,4.2,4.5,4.1,4.0,4.0,4.0,3.6,2.7,2.7,2.8,3.7,4.5,4.5,4.3,4.3,4.4,null],"f":309,"l":1470},"6d71":{"m":[null,null,null,null,null,8.0,8.0,6.2,5.5,5.0,4.8,4.4,3.8,3.8,3.8,3.0,3.0,3.0,3.0,3.0,3.2,3.5,4.2,4.3,5.1,6.1],"f":309,"l":1530},"1083":{"m":[null,null,null,null,null,null,8.0,8.0,8.0,5.9,4.8,4.0,4.0,4.0,4.3,4.3,4.3,4.3,4.3,4.3,4.8,5.3,8.0,8.0,8.0,null],"f":369,"l":1470},"64d8":{"m":[null,null,null,null,null,6.0,2.9,1.5,1.6,2.4,3.7,3.2,2.3,2.4,3.2,2.0,1.7,1.5,1.6,2.4,3.6,4.3,5.6,6.0,6.0,null],"f":309,"l":1470},"62cb":{"m":[null,null,null,null,null,6.0,2.9,1.5,1.6,2.4,3.7,3.2,2.3,2.4,3.2,2.0,1.7,1.5,1.6,2.4,3.6,4.3,4.3,4.3,4.3,null],"f":309,"l":1470},"3f87":{"m":[null,null,null,null,null,8.0,8.0,5.8,5.0,5.0,4.3,3.3,3.3,3.3,3.3,2.6,2.6,2.6,2.6,3.0,3.2,3.5,4.2,4.3,5.1,6.1],"f":309,"l":1530},"7749":{"m":[null,null,null,null,null,null,8.0,8.0,8.0,5.9,4.7,3.5,3.5,3.5,4.0,4.0,4.0,4.0,4.0,4.0,4.8,5.1,8.0,8.0,8.0,null],"f":369,"l":1470},"ed30":{"m":[null,null,null,null,null,null,8.0,8.0,8.0,6.1,5.5,4.9,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.8,6.0,7.4,8.0,8.0,null],"f":369,"l":1470},"a86f":{"m":[null,null,null,null,null,null,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,8.0,7.6,null],"f":369,"l":1470},"548b":{"m":[null,null,null,null,null,8.0,6.1,3.3,3.1,4.5,4.5,4.5,4.5,4.5,4.5,3.9,3.0,3.0,3.0,4.5,4.5,4.5,5.8,6.0,6.0,null],"f":309,"l":1470}},"d":{"20261027":"17cc","20261028":"17cc","20261029":"5c4d","20261030":"5c4d","20261031":"6d71","20261101":"1083","20261102":"64d8","20261103":"64d8","20261104":"64d8","20261105":"62cb","20261106":"62cb","20261107":"3f87","20261108":"7749","20261109":"64d8","20261110":"64d8","20261111":"ed30","20261112":"62cb","20261113":"62cb","20261114":"3f87","20261115":"7749","20261116":"64d8","20261117":"64d8","20261118":"64d8","20261119":"62cb","20261120":"62cb","20261121":"3f87","20261122":"7749","20261123":"64d8","20261124":"64d8","20261125":"64d8","20261126":"62cb","20261127":"62cb","20261128":"3f87","20261129":"7749","20261130":"64d8","20261201":"64d8","20261202":"64d8","20261203":"62cb","20261204":"62cb","20261205":"3f87","20261206":"7749","20261207":"64d8","20261208":"64d8","20261209":"64d8","20261210":"62cb","20261211":"62cb","20261212":"3f87","20261213":"7749","20261214":"64d8","20261215":"64d8","20261216":"64d8","20261217":"62cb","20261218":"62cb","20261219":"3f87","20261220":"7749","20261221":"17cc","20261222":"17cc","20261223":"17cc","20261224":"5c4d","20261225":"a86f","20261226":"6d71","20261227":"1083","20261228":"548b","20261229":"548b","20261230":"548b","20261231":"548b"},"w":{"1":"64d8","2":"64d8","3":"62cb","4":"62cb","5":"3f87","6":"7749","0":"64d8"}};
+  function metroFreq() {
+    var parts = new Intl.DateTimeFormat("fr-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()), o = {};
+    parts.forEach(function (q) { o[q.type] = q.value; });
+    var t = parseInt(o.hour, 10) * 60 + parseInt(o.minute, 10);
+    var d = new Date(Date.UTC(+o.year, +o.month - 1, +o.day));
+    if (t < 240) { d = new Date(d.getTime() - 86400000); t += 1440; }   /* service de la veille (horaires après minuit) */
+    var F = METRO_FREQ;
+    function variant(dt) {
+      var key = dt.getUTCFullYear() + ("0" + (dt.getUTCMonth() + 1)).slice(-2) + ("0" + dt.getUTCDate()).slice(-2);
+      var id = F.d[key] || F.w[String((dt.getUTCDay() + 6) % 7)];
+      return F.v[id];
+    }
+    function hm(m) { return Math.floor(m / 60) % 24 + "h" + ("0" + (m % 60)).slice(-2); }
+    var v = variant(d);
+    if (!v) return null;
+    if (t > v.l) { var nx = variant(new Date(d.getTime() + 86400000)); return { big: "Service terminé", sub: nx ? "Premier métro " + hm(nx.f) : "" }; }
+    if (t < v.f) return { big: "Service terminé", sub: "Premier métro " + hm(v.f) };
+    var h = Math.floor(t / 60), g = v.m[h];
+    if (g == null) g = v.m[h - 1] != null ? v.m[h - 1] : v.m[h + 1];
+    if (g == null) return null;
+    var r = g < 3 ? Math.round(g * 2) / 2 : Math.round(g);
+    return { big: "Toutes les " + String(r).replace(".", ",") + "\u00a0min", sub: "Fréquence théorique" };
+  }
   function loadAlerts() {
     return Promise.all([getJSON(URLS.alerts).catch(function () { return null; }), mobiFeatures()]).then(function (rs) {
       var j = rs[0], mobi = rs[1];
@@ -938,8 +965,8 @@ footer { font-size: .78rem; color: var(--muted); }
             "L'heure de fin annoncée est dépassée et aucune nouvelle alerte n'est publiée.");
           $("sMetro").className = "sub quiet";
         } else {
-          setCard("Metro", "ok", "Rien d'annoncé", "Aucune alerte", "",
-            "");
+          var mf = metroFreq();
+          setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", "");
           $("sMetro").className = "sub quiet";
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
