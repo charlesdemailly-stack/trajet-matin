@@ -88,8 +88,8 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; lett
 #when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
 #when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
 .sky { width: 1.5em; height: 1.5em; flex: none; }
-#refresh { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 1px 7px; border-radius: 7px; background: var(--bg); font: inherit; font-weight: 400; vertical-align: baseline; margin: 0 2px; }
-#refresh svg { width: 1.15em; height: 1.15em; flex: none; }
+#refresh { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 1px 7px; border-radius: 7px; background: var(--bg); font-family: inherit; font-size: inherit; font-weight: inherit; font-style: inherit; letter-spacing: inherit; line-height: inherit; text-transform: none; -webkit-appearance: none; appearance: none; vertical-align: baseline; margin: 0 2px; }
+#refresh svg { width: 1em; height: 1em; flex: none; }
 #refresh.spin { opacity: .6; } #refresh.spin svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
@@ -286,7 +286,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : <span class="clock" id="kPage"></span> <button id="refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.8 12A7.8 7.8 0 1 1 17.4 6.4"/><path d="M19.9 3.8v4.6h-4.6"/></svg><span>actualiser</span></button> Open-Meteo, V'Lille, Ilévia alertes de la Métropole (open data MEL) et MobiLille. Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
+  <footer>Données : <span class="clock" id="kPage"></span> <button id="refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.2 8A6.2 6.2 0 1 1 12.3 3.55"/><path d="M14.3 1.5v3.7h-3.7"/></svg><span>actualiser</span></button> Open-Meteo, V'Lille, Ilévia alertes de la Métropole (open data MEL) et MobiLille. Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
