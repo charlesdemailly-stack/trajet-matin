@@ -140,6 +140,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .big .sky { width: .8em; height: .8em; vertical-align: -.06em; margin-right: .1em; }
 .big .rlead { margin-right: .1em; } .big .rlead.off { display: none; }
 .mi { white-space: nowrap; }
+.mi.o, .mi.o svg { color: var(--warn); } .mi.r, .mi.r svg { color: var(--bad); }
 .tg { white-space: nowrap; } .tlead.off { display: none; }
 .mi svg { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: .25em; color: var(--muted); }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
@@ -318,6 +319,7 @@ footer { font-size: .78rem; color: var(--muted); }
     clockMeteoWarnSec: 1800, clockMeteoBadSec: 7200,               /* pluie : orange au-delà de 30 min, rouge au-delà de 2 h sans lecture réussie */
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     tempStableDelta: 1,                                          /* écart max-min sous lequel la température est « stable » (°C) */
+    rainProbWarn: 40, rainMmWarn: 0.5, rainMmBad: 1.5,          /* verdict pluie : orange dès 40 % ou 0,5 mm cumulé, rouge dès 1,5 mm (la probabilité seule ne rend jamais rouge) */
     rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
     refreshMs: 60000
   };
@@ -383,12 +385,13 @@ footer { font-size: .78rem; color: var(--muted); }
       var idx = [];
       t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h < end) idx.push(i); });
       if (!idx.length) throw new Error("no hours");
-      var maxP = 0, sum = 0, tmin = 99, tmax = -99, hours = [];
+      var maxP = 0, sum = 0, tmin = 99, tmax = -99, hours = [], wet = null;
       idx.forEach(function (i) {
         var h = parseInt(t[i].slice(11, 13), 10);
         maxP = Math.max(maxP, prob[i] || 0); sum += mm[i] || 0;
         tmin = Math.min(tmin, temp[i]); tmax = Math.max(tmax, temp[i]);
-        if ((prob[i] || 0) >= 40 || (mm[i] || 0) >= 0.2) hours.push({ h: h, mm: mm[i] || 0 });
+        if ((prob[i] || 0) >= CFG.rainProbWarn || (mm[i] || 0) >= CFG.rainMmWarn) hours.push({ h: h, mm: mm[i] || 0 });
+        if (!wet || (mm[i] || 0) > wet.mm) wet = { h: h, mm: mm[i] || 0 };
       });
       var ranges = [], cur = null;
       hours.forEach(function (o) {
@@ -396,9 +399,12 @@ footer { font-size: .78rem; color: var(--muted); }
         else { if (cur) ranges.push(cur); cur = { a: o.h, b: o.h, mm: o.mm }; }
       });
       if (cur) ranges.push(cur);
+      /* Verdict : le plus sévère de la probabilité (orange seulement) et de la quantité cumulée (orange puis rouge) */
       var level = 0, title = "Rien de spécial";
-      if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
-      else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
+      if (sum >= CFG.rainMmBad) { level = 2; title = "Parapluie + chaussures étanches"; }
+      else if (maxP >= CFG.rainProbWarn || sum >= CFG.rainMmWarn) { level = 1; title = "Prends un parapluie"; }
+      /* pluie trop étalée pour qu'une heure atteigne les seuils : on montre l'heure la plus arrosée */
+      if (level > 0 && !ranges.length && wet) ranges.push({ a: wet.h, b: wet.h, mm: wet.mm });
       LAST.meteo = Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
@@ -414,8 +420,9 @@ footer { font-size: .78rem; color: var(--muted); }
         null);
       $("mMeteo").innerHTML = tempLine(t, temp, day, start, end, label, now.hour);
       fixTempLeads();
-      $("sMeteo").innerHTML = '<span class="mi">' + IC_DICE + Math.round(maxP) + " %</span> · " +
-        '<span class="mi">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
+      var cP = maxP >= CFG.rainProbWarn ? " o" : "", cQ = sum >= CFG.rainMmBad ? " r" : sum >= CFG.rainMmWarn ? " o" : "";
+      $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxP) + " %</span> · " +
+        '<span class="mi' + cQ + '">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
       fixRangeLeads();
     }).catch(function () {
       R.meteo = null; R.cur = null;
