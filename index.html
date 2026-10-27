@@ -783,6 +783,14 @@ footer { font-size: .78rem; color: var(--muted); }
             if (CFG.metroStops.indexOf(st.id) >= 0 && st.rel !== 1 && st.t) (mt.by[st.id] = mt.by[st.id] || []).push(st.t);
           });
         });
+        /* DIAG-TEMP : contenu du flux (à retirer) */
+        var rs = {}, noRoute = 0, lig = 0, ligTrips = [];
+        tus.forEach(function (tu) {
+          if (tu.route) rs[tu.route] = (rs[tu.route] || 0) + 1; else noRoute++;
+          var hit = tu.stops.some(function (st) { return /^(LIG|4CA|CAL)\d+$/.test(st.id || ""); });
+          if (hit) { lig++; if (ligTrips.length < 3) ligTrips.push((tu.route || "?") + "/" + String(tu.trip || "").slice(0, 14)); }
+        });
+        mt.diag = tus.length + " trajets · ME1 " + mt.n + " · sans ligne " + noRoute + " · arrêts métro " + lig + (ligTrips.length ? " (" + ligTrips.join(", ") + ")" : "") + " · lignes " + Object.keys(rs).sort().slice(0, 14).join(",");
         R.metroRT = mt;
         if (R.metroIdle) paintMetroIdle();
         R.bus = { list: pass }; R.busFail = false; R.busErr = null; LAST.ok = Date.now();
@@ -896,7 +904,7 @@ footer { font-size: .78rem; color: var(--muted); }
   function fmtFreq(g) { var r = g < 3 ? Math.round(g * 2) / 2 : Math.round(g); return "Toutes les " + String(Math.max(r, 1)).replace(".", ",") + "\u00a0min"; }
   function paintMetroIdle() {
     var mf = metroFreq();
-    setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", "");
+    setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", R.metroRT && R.metroRT.diag && mf && mf.sub === "Fréquence théorique" ? "Diag RT : " + R.metroRT.diag : "");
     $("sMetro").className = "sub quiet";
   }
   function metroFreq() {
