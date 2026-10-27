@@ -88,8 +88,8 @@ h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; lett
 #when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
 #when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
 .sky { width: 1.5em; height: 1.5em; flex: none; }
-#refresh { flex: none; width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
-#refresh svg { width: 20px; height: 20px; }
+#refresh { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 10px; border-radius: 8px; font-size: .8rem; font-weight: 600; vertical-align: middle; margin: 0 2px 2px; }
+#refresh svg { width: 18px; height: 18px; flex: none; }
 #refresh.spin { opacity: .6; } #refresh.spin svg { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #refresh.spin svg { animation: none; } }
@@ -223,8 +223,8 @@ footer { font-size: .78rem; color: var(--muted); }
 <main class="wrap">
   <header>
     <p id="when">Chargement…</p>
-    <button id="refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.8 12A7.8 7.8 0 1 1 17.4 6.4"/><path d="M19.9 3.8v4.6h-4.6"/></svg></button>
   </header>
+  <p class="stale" id="xPage" aria-live="polite"></p>
 
   <section class="verdict" id="verdict" data-level="-1" aria-live="polite">
     <p class="v-main" id="vMain">Chargement des données…</p>
@@ -286,7 +286,7 @@ footer { font-size: .78rem; color: var(--muted); }
     </article>
   </div>
 
-  <footer>Données : Open-Meteo, V'Lille, Ilévia alertes de la Métropole (open data MEL) et MobiLille. Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
+  <footer>Données : <span class="clock" id="kPage"></span> <button id="refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19.8 12A7.8 7.8 0 1 1 17.4 6.4"/><path d="M19.9 3.8v4.6h-4.6"/></svg><span>actualiser</span></button> Open-Meteo, V'Lille, Ilévia alertes de la Métropole (open data MEL) et MobiLille. Mise à jour automatique chaque minute.<br>Pluie : <span class="clock" id="kMeteo"></span> · prévisions Open-Meteo<br>Vélo : <span class="clock" id="kVlille"></span> · station Rue du Parc<br>Bus : <span class="clock" id="kBus"></span> · passages annoncés en temps réel · arrêt Chaufour, lignes 86, 88, L5, L91<br>Métro : <span class="clock" id="kMetro"></span> · ⚠︎ Une panne très récente peut ne pas y figurer encore.</footer>
 </main>
 
 <script>
@@ -305,6 +305,7 @@ footer { font-size: .78rem; color: var(--muted); }
     metroRoute: "ME1",
     clockVlilleMin: 6, clockVlilleMax: 10, clockVlilleRed: 15,   /* vélo : orange à (nb de vélos borné entre min et max) minutes, rouge à clockVlilleRed minutes */
     clockMetroWarnSec: 120, clockMetroBadSec: 300,
+    clockPageWarnSec: 120, clockPageBadSec: 300,                 /* page : âge de la dernière actualisation réussie (au moins une source lue) */
     routeBearing: 157.5,                                         /* cap du trajet à vélo vers la gare (SSE) */
     windWarnKmh: 30, windWarnGust: 50, windBadKmh: 45, windBadGust: 70,   /* icône vent de la ligne du haut (toutes directions) */
     headWarn: 15, headWarnGust: 30, headBad: 25, headBadGust: 45,         /* vent de face (composante vers la gare) : bandeau + carte Vélo */
@@ -322,7 +323,7 @@ footer { font-size: .78rem; color: var(--muted); }
   };
   var TZ = "Europe/Paris";
   var R = { meteo: null, vlille: null, bus: null, alerts: null };
-  var LAST = { meteo: null, vlille: null, bus: null }, loadedOnce = false;
+  var LAST = { meteo: null, vlille: null, bus: null, ok: null }, loadedOnce = false;
 
   function $(id) { return document.getElementById(id); }
   function setCard(key, state, pill, big, sub, meta) {
@@ -366,7 +367,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var level = 0, title = "Rien de spécial";
       if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
-      LAST.meteo = Date.now();
+      LAST.meteo = Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
       R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
@@ -439,10 +440,7 @@ footer { font-size: .78rem; color: var(--muted); }
       if (w && w.note) parts.push('<span class="seg ic">' + L + '<span class="meteo ' + (w.note === 2 ? "r" : "o") + '" title="Vent ' + Math.round(w.sp) + " km/h, rafales " + Math.round(w.gust) + '">' + IC_WIND + "<b>" + Math.round(w.sp) + "</b></span></span>");
     }
     var w = $("when");
-    function put(txt) { w.innerHTML = parts.concat(['<span class="seg">' + L + txt + hhmm(d) + "</span>"]).join(" "); fixLeads(); }
-    put("mis à jour à ");
-    /* si tout ne tient pas sur une ligne : « MAJ à » */
-    if (w.getBoundingClientRect().height > parseFloat(getComputedStyle(w).lineHeight) * 1.5) put("MAJ à ");
+    w.innerHTML = parts.join(" "); fixLeads();
   }
 
   /* ---------- Horloges « temps écoulé » ---------- */
@@ -497,8 +495,24 @@ footer { font-size: .78rem; color: var(--muted); }
       h.style.letterSpacing = ""; h.style.fontSize = ""; h.style.whiteSpace = "";
     });
   }
+  function pageAge() {
+    if (!LAST.ok) return { ms: null, level: loadedOnce ? "bad" : "" };
+    var ms = Math.max(0, Date.now() - LAST.ok);
+    return { ms: ms, level: ms > CFG.clockPageBadSec * 1000 ? "bad" : ms > CFG.clockPageWarnSec * 1000 ? "warn" : "ok" };
+  }
+  function renderPageClock() {
+    var a = pageAge(), el = $("xPage");
+    setClock("kPage", a.ms, a.level);
+    if (!a.level || a.level === "ok") { el.innerHTML = ""; el.className = "stale"; return; }
+    var when = a.ms === null ? "Aucune donnée reçue." : "dernière actualisation il y a " + '<span style="white-space:nowrap">' + fmtElapsed(a.ms).replace(/ /g, "\u00a0") + "</span>";
+    el.innerHTML = a.level === "bad"
+      ? "Données non fiables : " + when + (a.ms === null ? "" : ".") + " Vérifie ta connexion, puis actualise."
+      : "Données un peu anciennes : " + when;
+    el.className = "stale t-" + a.level;
+  }
   function renderClocks() {
     var now = Date.now(), a;
+    renderPageClock();
     a = meteoAge();
     setClock("kMeteo", a.ms, a.level); setStale("xMeteo", a.ms, a.level, "Prévisions");
     if (LAST.vlille) {
@@ -536,7 +550,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var state = off ? "off" : bikes === 0 ? "bad" : bikes <= 3 ? "warn" : "ok";
       var pill = off ? "Hors service" : bikes === 0 ? "Vide" : bikes <= 3 ? "Presque vide" : "Disponible";
       R.vlille = { bikes: bikes, off: off, at: (st.last_reported || j.last_updated) * 1000 };
-      LAST.vlille = R.vlille.at;
+      LAST.vlille = R.vlille.at; LAST.ok = Date.now();
       var big = '<span class="n ' + nClass(bikes) + '">' + bikes + "</span> <small>vélo" + (bikes > 1 ? "s" : "") + "</small>";
       setCard("Vlille", state, pill, big, "", "");
       /* stations voisines, seulement si la station principale est presque vide */
@@ -701,7 +715,7 @@ footer { font-size: .78rem; color: var(--muted); }
           });
         });
         pass.sort(function (x, y) { return x.t - y.t; });
-        R.bus = { list: pass }; R.busFail = false; R.busErr = null;
+        R.bus = { list: pass }; R.busFail = false; R.busErr = null; LAST.ok = Date.now();
         var nowMs = Date.now(), fts = feedTs ? feedTs * 1000 : 0;
         LAST.bus = (fts > nowMs - 3600000 && fts < nowMs + 300000) ? Math.min(fts, nowMs) : nowMs;
         renderBusCard();
@@ -810,7 +824,7 @@ footer { font-size: .78rem; color: var(--muted); }
           return t !== null && t > newest;
         }).concat(mobi) };
       }
-      R.alertsReadAt = Date.now();
+      R.alertsReadAt = Date.now(); LAST.ok = Date.now();
       $("sMetro").className = "sub";
       var now = Date.now(), items = [], busAlerts = {}, endedRecently = [];
       (j.features || []).forEach(function (f) {
