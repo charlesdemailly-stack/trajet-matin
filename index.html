@@ -136,6 +136,11 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .i.i-bus { width: 1.87em; height: .9em; margin-top: 0; margin-bottom: 0; vertical-align: -.2em; }
 .i { width: 1.3em; height: 1.3em; vertical-align: -.15em; margin-top: -.2em; margin-bottom: -.2em; }
 .big .ico-off { display: inline-block; width: .7em; height: .7em; margin: 0; vertical-align: baseline; color: inherit; }
+.big .rg { white-space: nowrap; }
+.big .sky { width: .8em; height: .8em; vertical-align: -.06em; margin-right: .1em; }
+.big .rlead { margin-right: .1em; } .big .rlead.off { display: none; }
+.mi { white-space: nowrap; }
+.mi svg { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: .25em; color: var(--muted); }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
 .sub.quiet { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -311,6 +316,7 @@ footer { font-size: .78rem; color: var(--muted); }
     headWarn: 15, headWarnGust: 30, headBad: 25, headBadGust: 45,         /* vent de face (composante vers la gare) : bandeau + carte Vélo */
     clockMeteoWarnSec: 1800, clockMeteoBadSec: 7200,               /* pluie : orange au-delà de 30 min, rouge au-delà de 2 h sans lecture réussie */
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
+    rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
     refreshMs: 60000
   };
   var URLS = {
@@ -344,6 +350,18 @@ footer { font-size: .78rem; color: var(--muted); }
   }
 
   /* ---------- Météo ---------- */
+  var IC_DICE = '<svg viewBox="0 0 24 24" role="img" aria-label="Risque de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.6"/><path d="M8.6 8.6v.01M12 12v.01M15.4 15.4v.01" stroke-width="2.4"/></svg>';
+  var IC_DROP = '<svg viewBox="0 0 24 24" role="img" aria-label="Quantité de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6c3.5 4.2 5.7 7.1 5.7 10.1a5.7 5.7 0 0 1-11.4 0c0-3 2.2-5.9 5.7-10.1z"/></svg>';
+  /* Plages de pluie : masque le « · » en début de ligne quand la plage passe à la ligne */
+  function fixRangeLeads() {
+    var rgs = $("bMeteo").querySelectorAll(".rg"), prevTop = null;
+    Array.prototype.forEach.call(rgs, function (r) {
+      var l = r.querySelector(".rlead"); if (l) l.classList.remove("off");
+      var top = Math.round(r.getBoundingClientRect().top);
+      if (prevTop !== null && top > prevTop + 10 && l) l.classList.add("off");
+      prevTop = top;
+    });
+  }
   function loadMeteo() {
     return getJSON(URLS.meteo).then(function (j) {
       var t = j.hourly.time, prob = j.hourly.precipitation_probability, mm = j.hourly.precipitation, temp = j.hourly.temperature_2m;
@@ -357,13 +375,14 @@ footer { font-size: .78rem; color: var(--muted); }
         var h = parseInt(t[i].slice(11, 13), 10);
         maxP = Math.max(maxP, prob[i] || 0); sum += mm[i] || 0;
         tmin = Math.min(tmin, temp[i]); tmax = Math.max(tmax, temp[i]);
-        if ((prob[i] || 0) >= 40 || (mm[i] || 0) >= 0.2) hours.push(h);
+        if ((prob[i] || 0) >= 40 || (mm[i] || 0) >= 0.2) hours.push({ h: h, mm: mm[i] || 0 });
       });
-      var ranges = [], a = null, b = null;
-      hours.forEach(function (h) {
-        if (a === null) { a = b = h; } else if (h === b + 1) { b = h; } else { ranges.push(a + "h–" + (b + 1) + "h"); a = b = h; }
+      var ranges = [], cur = null;
+      hours.forEach(function (o) {
+        if (cur && o.h === cur.b + 1) { cur.b = o.h; cur.mm = Math.max(cur.mm, o.mm); }
+        else { if (cur) ranges.push(cur); cur = { a: o.h, b: o.h, mm: o.mm }; }
       });
-      if (a !== null) ranges.push(a + "h–" + (b + 1) + "h");
+      if (cur) ranges.push(cur);
       var level = 0, title = "Rien de spécial";
       if (sum >= 1 || maxP >= 70) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= 40 || sum >= 0.2) { level = 1; title = "Prends un parapluie"; }
@@ -373,10 +392,16 @@ footer { font-size: .78rem; color: var(--muted); }
       R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
       var state = level === 2 ? "bad" : level === 1 ? "warn" : "ok";
       var pill = level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
-      var big = ranges.length ? ranges.join(" · ") : "Pas de pluie";
+      var big = ranges.length ? ranges.map(function (r, k) {
+        var key = r.mm >= CFG.rainHeavyMm ? "heavy" : r.mm >= CFG.rainLightMm ? "rain" : "drizzle";
+        return '<span class="rg">' + (k ? '<span class="rlead">·</span> ' : "") + SKY[key] + r.a + "h–" + (r.b + 1) + "h</span>";
+      }).join(" ") : "Pas de pluie";
       setCard("Meteo", state, pill, big,
-        "Risque max " + Math.round(maxP) + " % · " + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm",
+        null,
         label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
+      $("sMeteo").innerHTML = '<span class="mi">' + IC_DICE + Math.round(maxP) + " %</span> · " +
+        '<span class="mi">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
+      fixRangeLeads();
     }).catch(function () {
       R.meteo = null; R.cur = null;
       setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
@@ -1002,8 +1027,8 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
-  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); });
+  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); fixRangeLeads(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); fixRangeLeads(); });
   refresh();
 })();
 </script>
