@@ -84,7 +84,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
 #when { margin: 0; color: var(--muted); font-size: .88rem; font-variant-numeric: tabular-nums; line-height: 1.5; }
 #when .seg { white-space: nowrap; }
-#when .lead { margin-right: .3em; } #when .seg.ic .lead { margin-right: .17em; } #when .lead.off { display: none; }
+#when .lead { margin-right: .3em; } #when .seg.ic .lead { margin-right: .17em; } #when .lead.off { display: none; } .lead.ghost, .rlead.ghost, .tlead.ghost { visibility: hidden; }
 #when .meteo { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); vertical-align: middle; }
 #when .meteo.o { color: var(--warn); } #when .meteo.r { color: var(--bad); } #when .meteo b { font-weight: 700; }
 .sky { width: 1.5em; height: 1.5em; flex: none; }
@@ -140,6 +140,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .big .sky { width: .8em; height: .8em; vertical-align: -.06em; margin-right: .1em; }
 .big .rlead { margin-right: .1em; } .big .rlead.off { display: none; }
 .mi { white-space: nowrap; }
+.tg { white-space: nowrap; } .tlead.off { display: none; }
 .mi svg { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: .25em; color: var(--muted); }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
@@ -316,6 +317,7 @@ footer { font-size: .78rem; color: var(--muted); }
     headWarn: 15, headWarnGust: 30, headBad: 25, headBadGust: 45,         /* vent de face (composante vers la gare) : bandeau + carte Vélo */
     clockMeteoWarnSec: 1800, clockMeteoBadSec: 7200,               /* pluie : orange au-delà de 30 min, rouge au-delà de 2 h sans lecture réussie */
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
+    tempStableDelta: 1,                                          /* écart max-min sous lequel la température est « stable » (°C) */
     rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
     refreshMs: 60000
   };
@@ -352,16 +354,27 @@ footer { font-size: .78rem; color: var(--muted); }
   /* ---------- Météo ---------- */
   var IC_DICE = '<svg viewBox="0 0 24 24" role="img" aria-label="Risque de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.6"/><path d="M8.6 8.6v.01M12 12v.01M15.4 15.4v.01" stroke-width="2.4"/></svg>';
   var IC_DROP = '<svg viewBox="0 0 24 24" role="img" aria-label="Quantité de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6c3.5 4.2 5.7 7.1 5.7 10.1a5.7 5.7 0 0 1-11.4 0c0-3 2.2-5.9 5.7-10.1z"/></svg>';
-  /* Plages de pluie : masque le « · » en début de ligne quand la plage passe à la ligne */
-  function fixRangeLeads() {
-    var rgs = $("bMeteo").querySelectorAll(".rg"), prevTop = null;
-    Array.prototype.forEach.call(rgs, function (r) {
-      var l = r.querySelector(".rlead"); if (l) l.classList.remove("off");
-      var top = Math.round(r.getBoundingClientRect().top);
-      if (prevTop !== null && top > prevTop + 10 && l) l.classList.add("off");
-      prevTop = top;
+  /* Ligne température : min / max de la plage (de start à end incluse), dans l'ordre chronologique ; l'extrême tombant à l'heure en cours est omis */
+  function tempLine(t, temp, day, start, end, label, nowHour) {
+    var pts = [];
+    t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h <= end && temp[i] != null) pts.push({ h: h, v: temp[i] }); });
+    var head = '<span class="tg">' + label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h</span>";
+    if (!pts.length) return head;
+    var lo = pts[0], hi = pts[0];
+    pts.forEach(function (o) { if (o.v < lo.v) lo = o; if (o.v > hi.v) hi = o; });
+    var seg = function (txt) { return ' <span class="tg"><span class="tlead">·</span> ' + txt + "</span>"; };
+    if (hi.v - lo.v < CFG.tempStableDelta) return head + seg("Température stable, " + Math.round((hi.v + lo.v) / 2) + "°");
+    var list = [{ k: "min", o: lo }, { k: "max", o: hi }].sort(function (a, b) { return a.o.h - b.o.h; });
+    var out = head;
+    list.forEach(function (e) {
+      if (label === "aujourd'hui" && e.o.h === nowHour) return;
+      out += seg(e.k + " " + Math.round(e.o.v) + "° à " + e.o.h + "h");
     });
+    return out;
   }
+  function fixTempLeads() { hideWrapLeads($("mMeteo"), ".tg", ".tlead"); }
+  /* Plages de pluie : masque le « · » en début de ligne quand la plage passe à la ligne */
+  function fixRangeLeads() { hideWrapLeads($("bMeteo"), ".rg", ".rlead"); }
   function loadMeteo() {
     return getJSON(URLS.meteo).then(function (j) {
       var t = j.hourly.time, prob = j.hourly.precipitation_probability, mm = j.hourly.precipitation, temp = j.hourly.temperature_2m;
@@ -398,7 +411,9 @@ footer { font-size: .78rem; color: var(--muted); }
       }).join(" ") : "Pas de pluie";
       setCard("Meteo", state, pill, big,
         null,
-        label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h · " + Math.round(tmin) + " à " + Math.round(tmax) + " °C");
+        null);
+      $("mMeteo").innerHTML = tempLine(t, temp, day, start, end, label, now.hour);
+      fixTempLeads();
       $("sMeteo").innerHTML = '<span class="mi">' + IC_DICE + Math.round(maxP) + " %</span> · " +
         '<span class="mi">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
       fixRangeLeads();
@@ -445,16 +460,22 @@ footer { font-size: .78rem; color: var(--muted); }
       (w.gust >= w.sp + 8 ? " · rafales " + Math.round(w.gust) : "") + "</span></span>";
   }
   /* Masque le « · » en début de ligne quand le texte passe à la ligne */
-  function fixLeads() {
-    var segs = $("when").querySelectorAll(".seg"), leads = $("when").querySelectorAll(".lead");
-    Array.prototype.forEach.call(leads, function (l) { l.classList.remove("off"); });
-    var prevTop = null;
-    Array.prototype.forEach.call(segs, function (sg) {
-      var top = Math.round(sg.getBoundingClientRect().top), l = sg.querySelector(".lead");
-      if (prevTop !== null && top > prevTop + 10 && l) l.classList.add("off");
-      prevTop = top;
-    });
+  /* Masque le « · » en début de ligne quand un segment passe à la ligne. Si le masquer fait tenir la ligne (le segment remonterait),
+     on le rend invisible mais on garde sa place, pour que la mise en page reste stable. */
+  function hideWrapLeads(root, segSel, leadSel) {
+    var segs = Array.prototype.slice.call(root.querySelectorAll(segSel));
+    var leadOf = function (sg) { return sg.querySelector(leadSel); };
+    segs.forEach(function (sg) { var l = leadOf(sg); if (l) l.classList.remove("off", "ghost"); });
+    var tops = function () { return segs.map(function (sg) { return Math.round(sg.getBoundingClientRect().top); }); };
+    var t0 = tops(), wrapped = [];
+    segs.forEach(function (sg, i) { if (i > 0 && t0[i] > t0[i - 1] + 8 && leadOf(sg)) wrapped.push(i); });
+    wrapped.forEach(function (i) { leadOf(segs[i]).classList.add("off"); });
+    if (wrapped.length) {
+      var t1 = tops();
+      wrapped.forEach(function (i) { if (!(t1[i] > t1[i - 1] + 8)) { var l = leadOf(segs[i]); l.classList.remove("off"); l.classList.add("ghost"); } });
+    }
   }
+  function fixLeads() { hideWrapLeads($("when"), ".seg", ".lead"); }
   function renderWhen(d) {
     var L = '<span class="lead">·</span>';
     var parts = ['<span class="seg">' + d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) + "</span>"];
@@ -1027,8 +1048,8 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
-  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); fixRangeLeads(); });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); fixRangeLeads(); });
+  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); fixRangeLeads(); fixTempLeads(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); fixRangeLeads(); fixTempLeads(); });
   refresh();
 })();
 </script>
