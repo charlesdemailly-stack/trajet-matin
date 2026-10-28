@@ -896,7 +896,7 @@ footer { font-size: .78rem; color: var(--muted); }
     if (g == null) g = v.m[h - 1] != null ? v.m[h - 1] : v.m[h + 1];
     if (g == null) return null;
     var r = g < 3 ? Math.round(g * 2) / 2 : Math.round(g);
-    var rt = r % 1 ? Math.floor(r) + "\u00a0min\u00a030" : r + "\u00a0min";
+    var rt = r % 1 ? Math.floor(r) + "m30" : r + "\u00a0min";
     return { big: "Toutes les " + rt, sub: "Fréquence théorique" };
   }
   /* Prochains départs exacts de Gare Lille Flandres vers 4 Cantons (horaires prévus GTFS Ilévia ; valables jusqu'au 31/12/2026). Minutes depuis minuit, codées en différences. */
@@ -1004,7 +1004,7 @@ footer { font-size: .78rem; color: var(--muted); }
           var mf = metroFreq();
           var nx = mf && /^Toutes/.test(mf.big) ? metroNext() : null;
           setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", "");
-          if (nx) { $("nxMetro").textContent = "Prochains vers 4\u00a0Cantons : " + nx.map(function (m) { return m < 1 ? "à quai" : m + "\u00a0min"; }).join(" · "); $("nxMetro").hidden = false; }
+          if (nx) { $("nxMetro").innerHTML = "Prochains vers 4\u00a0Cantons : " + nx.map(function (m, k) { var t = m < 1 ? "à quai" : m + "\u00a0min"; return k === 0 ? "<b>" + t + "</b>" : t; }).join(" · "); $("nxMetro").hidden = false; }
           $("sMetro").className = "sub quiet";
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
