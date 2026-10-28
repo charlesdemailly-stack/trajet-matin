@@ -1,13 +1,3 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Trajet">
-<meta name="theme-color" content="#0a121f">
-</head>
-<body style="margin:0">
 <title>Trajet du matin</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
@@ -858,6 +848,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var lines = (j && j[0] && j[0].lines) || [], out = [];
       lines.forEach(function (l) {
         if (l.line_name !== "ME1") return;
+        out.seen = true; out.operational = /^op[ée]rationnelle$/i.test(String(l.state || "").trim());
         (l.alerts || []).forEach(function (a) {
           if (!a || !a.message) return;
           out.push({ properties: { message: a.message, cible: "ILEVIA:LineRef::ME1", date_modif: String(a.date_modif || "").replace(" ", "T"), heure_fin_prevue: a.date_fin ? String(a.date_fin).replace(" ", "T") : null, _mobi: true } });
@@ -898,6 +889,18 @@ footer { font-size: .78rem; color: var(--muted); }
       var j = rs[0], mobi = rs[1];
       if (!j && !mobi.length) throw new Error("alerts");
       j = j || { features: [] };
+      if (!mobi.length && mobi.seen && mobi.operational) {
+        /* MobiLille : ligne opérationnelle, aucune alerte -> on écarte les messages M1 de la MEL sans fin annoncée, vieux de plus d'1 h (sauf « reprise »). */
+        var nowT = Date.now();
+        j = { features: (j.features || []).filter(function (f) {
+          var p = f.properties || {}, ln = lineOf(p.cible);
+          if (ln !== "M1" && ln !== "ME1") return true;
+          if (kind(cleanMsg(p.message)) === "rec") return true;
+          if (p.heure_fin_prevue) return true;
+          var t = pickDate(p);
+          return t === null || nowT - t < 3600000;
+        }) };
+      }
       if (mobi.length) {
         var newest = 0;
         mobi.forEach(function (f) { var t = wallTime(f.properties.date_modif); if (t !== null && t > newest) newest = t; });
@@ -1092,6 +1095,3 @@ footer { font-size: .78rem; color: var(--muted); }
   refresh();
 })();
 </script>
-
-</body>
-</html>
