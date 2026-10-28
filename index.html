@@ -273,6 +273,7 @@ footer { font-size: .78rem; color: var(--muted); }
       <div class="card-head"><h2>Métro · ligne 1</h2><span class="pill" id="pMetro">…</span></div>
       <p class="big" id="bMetro">–</p>
       <p class="stale" id="xMetro"></p>
+      <p class="sub" id="nxMetro" hidden></p>
       <p class="sub" id="sMetro"></p>
       <div class="foot"><p class="meta" id="mMetro"></p></div>
       <ul class="msgs" id="nMetro"></ul>
@@ -345,6 +346,7 @@ footer { font-size: .78rem; color: var(--muted); }
     $("b" + key).innerHTML = big;
     if (sub != null && $("s" + key)) $("s" + key).textContent = sub;
     if ($("m" + key)) $("m" + key).textContent = meta || "";
+    if ($("nx" + key)) { $("nx" + key).hidden = true; $("nx" + key).textContent = ""; }
   }
   function hhmm(d) { return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: TZ }); }
   function parisNow() {
@@ -1000,7 +1002,8 @@ footer { font-size: .78rem; color: var(--muted); }
         } else {
           var mf = metroFreq();
           var nx = mf && /^Toutes/.test(mf.big) ? metroNext() : null;
-          setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", nx ? "Prochains vers 4\u00a0Cantons : " + nx.map(function (m) { return m < 1 ? "à quai" : m + "\u00a0min"; }).join(" · ") : "");
+          setCard("Metro", "ok", "Rien d'annoncé", mf ? mf.big : "Aucune alerte", mf ? mf.sub : "", "");
+          if (nx) { $("nxMetro").textContent = "Prochains vers 4\u00a0Cantons : " + nx.map(function (m) { return m < 1 ? "à quai" : m + "\u00a0min"; }).join(" · "); $("nxMetro").hidden = false; }
           $("sMetro").className = "sub quiet";
         }
         if (lastRec && lastRec.start && now - lastRec.start < 3 * 3600000) recs.slice(0, 3).forEach(function (r) { addLi(r, "rec"); });
