@@ -285,10 +285,11 @@ footer { font-size: .78rem; color: var(--muted); }
         <button type="button" id="wToggle" aria-expanded="false" aria-controls="wBox" aria-label="Afficher le widget TransportMEL" title="Widget TransportMEL"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M8 2v12M2 8h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         <!-- WIDGET-COMPARAISON-BOUTON-FIN -->
       </div>
-      <!-- WIDGET-COMPARAISON-BOITE-DEBUT : bloc temporaire, masqué par défaut (widget TransportMEL, ligne 1 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc, le bouton « wToggle » ci-dessus et le script « wToggle » plus bas. -->
+      <!-- WIDGET-COMPARAISON-BOITE-DEBUT : bloc temporaire, masqué par défaut (widget TransportMEL, lignes 1 et 2 à Gare Lille Flandres). Pour le retirer : supprimer ce bloc, le bouton « wToggle » ci-dessus et le script « wToggle » plus bas. -->
       <div class="cmp" id="wBox" hidden>
-        <p class="meta">Pour comparer · widget TransportMEL (ligne 1, Gare Lille Flandres). Passages théoriques ; un bandeau apparaît en cas de panne signalée.</p>
+        <p class="meta">Pour comparer · widget TransportMEL (lignes 1 et 2, Gare Lille Flandres). Passages théoriques ; un bandeau apparaît en cas de panne signalée.</p>
         <iframe data-src="https://transportmel.fr/widget/arret?nom=Gare%20Lille%20Flandres&amp;lat=50.63769&amp;lon=3.07093&amp;lignes=M1" title="Prochains passages · Gare Lille Flandres · ligne 1" width="100%" height="320" style="border:0;border-radius:16px;max-width:520px" loading="lazy"></iframe>
+        <iframe data-src="https://transportmel.fr/widget/arret?nom=Gare%20Lille%20Flandres&amp;lat=50.63769&amp;lon=3.07093&amp;lignes=M2" title="Prochains passages · Gare Lille Flandres · ligne 2" width="100%" height="320" style="border:0;border-radius:16px;max-width:520px" loading="lazy"></iframe>
       </div>
       <!-- WIDGET-COMPARAISON-BOITE-FIN -->
     </article>
@@ -1086,11 +1087,11 @@ footer { font-size: .78rem; color: var(--muted); }
   /* Bouton du widget de comparaison (temporaire) : wToggle */
   var wBtn = $("wToggle");
   if (wBtn) wBtn.addEventListener("click", function () {
-    var box = $("wBox"), open = box.hidden, f = box.querySelector("iframe");
+    var box = $("wBox"), open = box.hidden;
     box.hidden = !open;
     wBtn.setAttribute("aria-expanded", String(open));
     wBtn.setAttribute("aria-label", open ? "Masquer le widget TransportMEL" : "Afficher le widget TransportMEL");
-    if (open && !f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src"));
+    if (open) Array.prototype.forEach.call(box.querySelectorAll("iframe"), function (f) { if (!f.getAttribute("src")) f.setAttribute("src", f.getAttribute("data-src")); });
     if (open) {
       var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       requestAnimationFrame(function () { box.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "nearest" }); });
