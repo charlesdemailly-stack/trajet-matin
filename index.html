@@ -136,7 +136,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .i.i-bus { width: 1.87em; height: .9em; margin-top: 0; margin-bottom: 0; vertical-align: -.2em; }
 .i { width: 1.3em; height: 1.3em; vertical-align: -.15em; margin-top: -.2em; margin-bottom: -.2em; }
 .big .ico-off { display: inline-block; width: .7em; height: .7em; margin: 0; vertical-align: baseline; color: inherit; }
-.big .rg { white-space: nowrap; }
+.big .rg { white-space: nowrap; display: block; }
 .big .sky { width: .8em; height: .8em; vertical-align: -.06em; margin-right: .1em; }
 .big .rlead { margin-right: .1em; } .big .rlead.off { display: none; }
 .mi { white-space: nowrap; }
@@ -326,12 +326,14 @@ footer { font-size: .78rem; color: var(--muted); }
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     tempStableDelta: 1,                                          /* écart max-min sous lequel la température est « stable » (°C) */
     rainProbWarn: 40, rainMmWarn: 0.5, rainMmBad: 1.5,          /* verdict pluie : orange dès 40 % ou 0,5 mm cumulé, rouge dès 1,5 mm (la probabilité seule ne rend jamais rouge) */
+    snowWarnCm: 0.5, snowBadCm: 1.5,                             /* neige (cm cumulés) : orange dès 0,5 cm, rouge dès 1,5 cm ; n'alimente jamais le bandeau du haut */
+    snowLightCm: 0.5, snowHeavyCm: 1.5,                          /* pictogramme de plage de neige : faible < 0,5 cm/h ≤ neige < 1,5 cm/h ≤ forte (pic horaire de la plage) */
     rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
     refreshMs: 60000
   };
   var URLS = {
     meteo: "https://api.open-meteo.com/v1/forecast?latitude=" + CFG.lat + "&longitude=" + CFG.lon +
-      "&hourly=temperature_2m,precipitation_probability,precipitation&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&forecast_days=2",
+      "&hourly=temperature_2m,precipitation_probability,precipitation,rain,showers,snowfall&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&forecast_days=2",
     vlille: "https://media.ilevia.fr/opendata/station_status.json",
     rt: "https://proxy.transport.data.gouv.fr/resource/ilevia-lille-gtfs-rt",
     mobi: "https://api.mobilille.fr/v2/lines/?agency=ILE",
@@ -362,6 +364,8 @@ footer { font-size: .78rem; color: var(--muted); }
 
   /* ---------- Météo ---------- */
   var IC_DICE = '<svg viewBox="0 0 24 24" role="img" aria-label="Risque de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.6"/><path d="M8.6 8.6v.01M12 12v.01M15.4 15.4v.01" stroke-width="2.4"/></svg>';
+  var IC_FLAKE = '<svg viewBox="0 0 24 24" role="img" aria-label="Neige" focusable="false" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12L12.00 3.00M12.00 6.42L9.70 4.49M12.00 6.42L14.30 4.49M12 12L19.79 7.50M16.83 9.21L17.35 6.26M16.83 9.21L19.65 10.24M12 12L19.79 16.50M16.83 14.79L19.65 13.76M16.83 14.79L17.35 17.74M12 12L12.00 21.00M12.00 17.58L14.30 19.51M12.00 17.58L9.70 19.51M12 12L4.21 16.50M7.17 14.79L6.65 17.74M7.17 14.79L4.35 13.76M12 12L4.21 7.50M7.17 9.21L4.35 10.24M7.17 9.21L6.65 6.26"/></svg>';
+  var SKY_SNOW = {"L": '<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="Faibles chutes de neige" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z"/><path d="M9.50 17.55L9.50 20.45M8.24 18.27L10.76 19.73M8.24 19.73L10.76 18.27M14.50 18.75L14.50 21.65M13.24 19.47L15.76 20.93M13.24 20.93L15.76 19.47" stroke-width="1.3"/></svg>', "M": '<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="Neige" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z"/><path d="M8.50 17.15L8.50 20.05M7.24 17.88L9.76 19.33M7.24 19.33L9.76 17.88M15.50 17.15L15.50 20.05M14.24 17.88L16.76 19.33M14.24 19.33L16.76 17.88M12.00 20.15L12.00 23.05M10.74 20.88L13.26 22.33M10.74 22.33L13.26 20.88" stroke-width="1.3"/></svg>', "H": '<svg class="sky" viewBox="0 0 24 24" role="img" aria-label="Forte neige" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 14.6h9.2a3.6 3.6 0 0 0 .4-7.2 5 5 0 0 0-9.6 1.2 3.1 3.1 0 0 0 0 6z"/><path d="M7.50 16.85L7.50 19.75M6.24 17.57L8.76 19.03M6.24 19.03L8.76 17.57M12.00 16.85L12.00 19.75M10.74 17.57L13.26 19.03M10.74 19.03L13.26 17.57M16.50 16.85L16.50 19.75M15.24 17.57L17.76 19.03M15.24 19.03L17.76 17.57M9.80 20.35L9.80 23.25M8.54 21.07L11.06 22.53M8.54 22.53L11.06 21.07M14.30 20.35L14.30 23.25M13.04 21.07L15.56 22.53M13.04 22.53L15.56 21.07" stroke-width="1.3"/></svg>'};
   var IC_DROP = '<svg viewBox="0 0 24 24" role="img" aria-label="Quantité de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6c3.5 4.2 5.7 7.1 5.7 10.1a5.7 5.7 0 0 1-11.4 0c0-3 2.2-5.9 5.7-10.1z"/></svg>';
   var IC_METEO = '<svg class="wic" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19h9.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 5.5 10 4.5 4.5 0 0 0 6 19z"/><path stroke="var(--surface)" stroke-width="4.5" d="M16 7.5v10"/><path d="M19.5 15.8V6a2 2 0 0 0-4 0v9.8a3.6 3.6 0 1 0 4 0z" style="fill:var(--surface)"/><path d="M17.5 10v7"/></svg>';
   /* Titre de la carte météo : pictogramme + plage horaire ; « 10h-20h » seulement si « de 10h à 20h » passerait sur 2 lignes */
@@ -382,7 +386,7 @@ footer { font-size: .78rem; color: var(--muted); }
     if (!pts.length) return "";
     var lo = pts[0], hi = pts[0];
     pts.forEach(function (o) { if (o.v < lo.v) lo = o; if (o.v > hi.v) hi = o; });
-    var dg = function (v) { return '<b class="tv">' + Math.round(v) + '<span class="deg">°</span></b>'; };
+    var dg = function (v) { return '<b class="tv">' + String(Math.round(v)).replace("-", "\u2212") + '<span class="deg">°</span></b>'; };
     var texts = [];
     if (hi.v - lo.v < CFG.tempStableDelta) texts.push("Température stable, " + dg((hi.v + lo.v) / 2));
     else {
@@ -404,52 +408,77 @@ footer { font-size: .78rem; color: var(--muted); }
   function fixRangeLeads() { hideWrapLeads($("bMeteo"), ".rg", ".rlead"); }
   function loadMeteo() {
     return getJSON(URLS.meteo).then(function (j) {
-      var t = j.hourly.time, prob = j.hourly.precipitation_probability, mm = j.hourly.precipitation, temp = j.hourly.temperature_2m;
+      var t = j.hourly.time, prob = j.hourly.precipitation_probability, temp = j.hourly.temperature_2m;
+      var H = j.hourly, rainA = H.rain, showA = H.showers, snowA = H.snowfall, totA = H.precipitation;
+      /* pluie = pluie + averses (mm) ; neige en cm. Repli sur le total si le détail manque. */
+      var rainAt = function (i) { return rainA && rainA[i] != null ? (rainA[i] || 0) + ((showA && showA[i]) || 0) : (totA[i] || 0); };
+      var snowAt = function (i) { return (snowA && snowA[i]) || 0; };
       var now = parisNow(), day = now.date, start = Math.max(now.hour, 6), end = 20, label = "aujourd'hui";
       if (now.hour >= 19) { day = t[24].slice(0, 10); start = 7; label = "demain"; }
       var idx = [];
       t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h < end) idx.push(i); });
       if (!idx.length) throw new Error("no hours");
-      var maxP = 0, sum = 0, tmin = 99, tmax = -99, hours = [], wet = null;
+      var maxP = 0, maxPAll = 0, maxPSnow = 0, sum = 0, sumSnow = 0, tmin = 99, tmax = -99, hours = [], snowHours = [], wet = null;
       idx.forEach(function (i) {
-        var h = parseInt(t[i].slice(11, 13), 10);
-        maxP = Math.max(maxP, prob[i] || 0); sum += mm[i] || 0;
+        var h = parseInt(t[i].slice(11, 13), 10), p = prob[i] || 0, r = rainAt(i), sn = snowAt(i);
+        var pureSnow = sn >= 0.1 && r < 0.1;   /* heure de neige seule : sa probabilité ne compte pas pour le parapluie */
+        maxPAll = Math.max(maxPAll, p);
+        if (!pureSnow) maxP = Math.max(maxP, p);
+        sum += r; sumSnow += sn;
         tmin = Math.min(tmin, temp[i]); tmax = Math.max(tmax, temp[i]);
-        if ((prob[i] || 0) >= CFG.rainProbWarn || (mm[i] || 0) >= CFG.rainMmWarn) hours.push({ h: h, mm: mm[i] || 0 });
-        if (!wet || (mm[i] || 0) > wet.mm) wet = { h: h, mm: mm[i] || 0 };
+        if (!pureSnow && (p >= CFG.rainProbWarn || r >= CFG.rainMmWarn)) hours.push({ h: h, v: r });
+        if (sn >= 0.1) { maxPSnow = Math.max(maxPSnow, p); if (p >= CFG.rainProbWarn || sn >= CFG.snowWarnCm) snowHours.push({ h: h, v: sn }); }
+        if (!wet || r > wet.v) wet = { h: h, v: r };
       });
-      var ranges = [], cur = null;
-      hours.forEach(function (o) {
-        if (cur && o.h === cur.b + 1) { cur.b = o.h; cur.mm = Math.max(cur.mm, o.mm); }
-        else { if (cur) ranges.push(cur); cur = { a: o.h, b: o.h, mm: o.mm }; }
-      });
-      if (cur) ranges.push(cur);
-      /* Verdict : le plus sévère de la probabilité (orange seulement) et de la quantité cumulée (orange puis rouge) */
+      var group = function (list) {
+        var out = [], c = null;
+        list.forEach(function (o) {
+          if (c && o.h === c.b + 1) { c.b = o.h; c.v = Math.max(c.v, o.v); }
+          else { if (c) out.push(c); c = { a: o.h, b: o.h, v: o.v }; }
+        });
+        if (c) out.push(c);
+        return out;
+      };
+      var ranges = group(hours), snowRanges = group(snowHours);
+      /* Verdict du bandeau : pluie seulement (la neige n'y figure jamais) */
       var level = 0, title = "Rien de spécial";
       if (sum >= CFG.rainMmBad) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= CFG.rainProbWarn || sum >= CFG.rainMmWarn) { level = 1; title = "Prends un parapluie"; }
       /* pluie trop étalée pour qu'une heure atteigne les seuils : on montre l'heure la plus arrosée */
-      if (level > 0 && !ranges.length && wet) ranges.push({ a: wet.h, b: wet.h, mm: wet.mm });
+      if (level > 0 && !ranges.length && wet && wet.v > 0) ranges.push({ a: wet.h, b: wet.h, v: wet.v });
+      /* Neige : niveau de la carte seulement */
+      var snowLevel = sumSnow >= CFG.snowBadCm ? 2 : (sumSnow >= CFG.snowWarnCm || (sumSnow >= 0.1 && maxPSnow >= CFG.rainProbWarn)) ? 1 : 0;
+      var cardLevel = Math.max(level, snowLevel);
       LAST.meteo = Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
-      R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
-      var state = level === 2 ? "bad" : level === 1 ? "warn" : "ok";
-      var pill = level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
-      var big = ranges.length ? ranges.map(function (r, k) {
-        var key = r.mm >= CFG.rainHeavyMm ? "heavy" : r.mm >= CFG.rainLightMm ? "rain" : "drizzle";
-        return '<span class="rg">' + (k ? '<span class="rlead">·</span> ' : "") + SKY[key] + r.a + "h–" + (r.b + 1) + "h</span>";
-      }).join(" ") : "Pas de pluie";
+      R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
+      var state = cardLevel === 2 ? "bad" : cardLevel === 1 ? "warn" : "ok";
+      var snowLed = snowLevel > 0 && snowLevel >= level;
+      var pill = snowLed ? "Neige" : level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
+      /* plages de pluie et de neige, l'une sous l'autre, alignées à gauche, dans l'ordre chronologique */
+      var all = ranges.map(function (r) {
+        var key = r.v >= CFG.rainHeavyMm ? "heavy" : r.v >= CFG.rainLightMm ? "rain" : "drizzle";
+        return { a: r.a, b: r.b, ic: SKY[key] };
+      }).concat(snowRanges.map(function (r) {
+        return { a: r.a, b: r.b, ic: SKY_SNOW[r.v >= CFG.snowHeavyCm ? "H" : r.v >= CFG.snowLightCm ? "M" : "L"] };
+      })).sort(function (x, y) { return x.a - y.a; });
+      var big = all.length ? all.map(function (r) {
+        return '<span class="rg">' + r.ic + r.a + "h–" + (r.b + 1) + "h</span>";
+      }).join("") : "Pas de pluie";
       setCard("Meteo", state, pill, big,
         null,
         null);
       $("mMeteo").innerHTML = tempLine(t, temp, day, start, end, label, now.hour);
       fixTempLeads();
       fitMeteoTitle();
-      var cP = maxP >= CFG.rainProbWarn ? " o" : "", cQ = sum >= CFG.rainMmBad ? " r" : sum >= CFG.rainMmWarn ? " o" : "";
-      $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxP) + " %</span> · " +
-        '<span class="mi' + cQ + '">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
-      fixRangeLeads();
+      var fmt = function (v) { return (Math.round(v * 10) / 10).toString().replace(".", ","); };
+      var cP = maxPAll >= CFG.rainProbWarn ? " o" : "", cQ = sum >= CFG.rainMmBad ? " r" : sum >= CFG.rainMmWarn ? " o" : "";
+      var cS = sumSnow >= CFG.snowBadCm ? " r" : sumSnow >= CFG.snowWarnCm ? " o" : "";
+      var qs = [];
+      if (sum >= 0.1 || sumSnow < 0.1) qs.push('<span class="mi' + cQ + '">' + IC_DROP + fmt(sum) + " mm</span>");
+      if (sumSnow >= 0.1) qs.push('<span class="mi' + cS + '">' + IC_FLAKE + fmt(sumSnow) + " cm</span>");
+      $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxPAll) + " %</span> · " + qs.join(" · ");
     }).catch(function () {
       R.meteo = null; R.cur = null; fitMeteoTitle();
       setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
