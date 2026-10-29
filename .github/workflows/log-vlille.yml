@@ -1,0 +1,35 @@
+name: Relevé V'Lille
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: log-vlille
+  cancel-in-progress: false
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - name: Branche de données
+        run: |
+          git clone --depth 1 --branch data "https://github.com/${GITHUB_REPOSITORY}" data 2>/dev/null || {
+            mkdir data && cd data && git init -q -b data && git remote add origin "https://github.com/${GITHUB_REPOSITORY}"
+          }
+      - name: Relevé
+        run: python3 main/tools/log_vlille.py data/vlille.csv
+      - name: Enregistrer
+        working-directory: data
+        run: |
+          git config user.name "releve-vlille"
+          git config user.email "releve-vlille@users.noreply.github.com"
+          git add vlille.csv
+          git diff --cached --quiet && exit 0
+          git commit -qm "Relevé $(date -u +%FT%TZ)"
+          git push "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" HEAD:data
