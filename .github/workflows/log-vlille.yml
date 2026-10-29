@@ -1,5 +1,9 @@
 name: Relevé V'Lille
 on:
+  push:
+    paths:
+      - ".github/workflows/log-vlille.yml"
+      - "tools/log_vlille.py"
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
