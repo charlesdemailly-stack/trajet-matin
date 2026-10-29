@@ -142,6 +142,7 @@ h2 { margin: 0; font-size: .8rem; font-weight: 600; letter-spacing: .12em; text-
 .mi { white-space: nowrap; }
 .mi.o, .mi.o svg { color: var(--warn); } .mi.r, .mi.r svg { color: var(--bad); }
 .tg { white-space: nowrap; } .tv { font-weight: 700; } .tv .deg { font-size: .75em; vertical-align: .12em; margin-left: .03em; } .tlead.off { display: none; }
+.wic { width: 1.25em; height: 1.25em; vertical-align: -.3em; margin-right: .45em; }
 .mi svg { width: 1.15em; height: 1.15em; vertical-align: -.22em; margin-right: .25em; color: var(--muted); }
 .big small { font-size: 1.4rem; font-weight: 600; color: var(--muted); }
 .sub { margin: 0; font-size: 1rem; }
@@ -242,7 +243,7 @@ footer { font-size: .78rem; color: var(--muted); }
 
   <div class="grid">
     <article class="card" id="cMeteo" data-state="off">
-      <div class="card-head"><h2>Pluie · La Madeleine</h2><span class="pill" id="pMeteo">…</span></div>
+      <div class="card-head"><h2 id="hMeteo"></h2><span class="pill" id="pMeteo">…</span></div>
       <p class="big" id="bMeteo">–</p>
       <p class="stale" id="xMeteo"></p>
       <p class="sub" id="sMeteo"></p>
@@ -361,22 +362,39 @@ footer { font-size: .78rem; color: var(--muted); }
   /* ---------- Météo ---------- */
   var IC_DICE = '<svg viewBox="0 0 24 24" role="img" aria-label="Risque de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.6"/><path d="M8.6 8.6v.01M12 12v.01M15.4 15.4v.01" stroke-width="2.4"/></svg>';
   var IC_DROP = '<svg viewBox="0 0 24 24" role="img" aria-label="Quantité de pluie" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6c3.5 4.2 5.7 7.1 5.7 10.1a5.7 5.7 0 0 1-11.4 0c0-3 2.2-5.9 5.7-10.1z"/></svg>';
+  var IC_METEO = '<svg class="wic" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19h9.5a4 4 0 0 0 .6-7.95A5.5 5.5 0 0 0 5.5 10 4.5 4.5 0 0 0 6 19z"/><path stroke="var(--surface)" stroke-width="4.5" d="M16 7.5v10"/><path d="M19.5 15.8V6a2 2 0 0 0-4 0v9.8a3.6 3.6 0 1 0 4 0z" style="fill:var(--surface)"/><path d="M17.5 10v7"/></svg>';
+  /* Titre de la carte météo : pictogramme + plage horaire ; « 10h-20h » seulement si « de 10h à 20h » passerait sur 2 lignes */
+  function fitMeteoTitle() {
+    var h = $("hMeteo"), r = R.meteo;
+    if (!h) return;
+    if (!r) { h.innerHTML = IC_METEO + "La Madeleine"; return; }
+    var base = r.start + "h", fin = r.end + "h";
+    h.style.whiteSpace = ""; h.style.letterSpacing = ""; h.style.fontSize = "";
+    h.innerHTML = IC_METEO + "De " + base + " à " + fin + " · La Madeleine";
+    if (h.offsetHeight > 1.6 * parseFloat(getComputedStyle(h).fontSize) * 1.1) h.innerHTML = IC_METEO + base + "-" + fin + " · La Madeleine";
+    if (typeof fitHeads === "function") fitHeads();
+  }
   /* Ligne température : min / max de la plage (de start à end incluse), dans l'ordre chronologique ; l'extrême tombant à l'heure en cours est omis */
   function tempLine(t, temp, day, start, end, label, nowHour) {
     var pts = [];
     t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h <= end && temp[i] != null) pts.push({ h: h, v: temp[i] }); });
-    var head = '<span class="tg">' + label.charAt(0).toUpperCase() + label.slice(1) + " de " + start + "h à " + end + "h</span>";
-    if (!pts.length) return head;
+    if (!pts.length) return "";
     var lo = pts[0], hi = pts[0];
     pts.forEach(function (o) { if (o.v < lo.v) lo = o; if (o.v > hi.v) hi = o; });
-    var seg = function (txt) { return ' <span class="tg"><span class="tlead">·</span> ' + txt + "</span>"; };
     var dg = function (v) { return '<b class="tv">' + Math.round(v) + '<span class="deg">°</span></b>'; };
-    if (hi.v - lo.v < CFG.tempStableDelta) return head + seg("Température stable, " + dg((hi.v + lo.v) / 2));
-    var list = [{ k: "min", o: lo }, { k: "max", o: hi }].sort(function (a, b) { return a.o.h - b.o.h; });
-    var out = head;
-    list.forEach(function (e) {
-      if (label === "aujourd'hui" && e.o.h === nowHour) return;
-      out += seg(e.k + " " + dg(e.o.v) + " à " + e.o.h + "h");
+    var texts = [];
+    if (hi.v - lo.v < CFG.tempStableDelta) texts.push("Température stable, " + dg((hi.v + lo.v) / 2));
+    else {
+      var list = [{ k: "min", o: lo }, { k: "max", o: hi }].sort(function (a, b) { return a.o.h - b.o.h; });
+      list.forEach(function (e) {
+        if (label === "aujourd'hui" && e.o.h === nowHour) return;
+        texts.push(e.k + " " + dg(e.o.v) + " à " + e.o.h + "h");
+      });
+    }
+    var out = "";
+    texts.forEach(function (txt, k) {
+      if (k === 0) out += '<span class="tg">' + txt.charAt(0).toUpperCase() + txt.slice(1) + "</span>";
+      else out += ' <span class="tg"><span class="tlead">·</span> ' + txt + "</span>";
     });
     return out;
   }
@@ -426,12 +444,13 @@ footer { font-size: .78rem; color: var(--muted); }
         null);
       $("mMeteo").innerHTML = tempLine(t, temp, day, start, end, label, now.hour);
       fixTempLeads();
+      fitMeteoTitle();
       var cP = maxP >= CFG.rainProbWarn ? " o" : "", cQ = sum >= CFG.rainMmBad ? " r" : sum >= CFG.rainMmWarn ? " o" : "";
       $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxP) + " %</span> · " +
         '<span class="mi' + cQ + '">' + IC_DROP + (Math.round(sum * 10) / 10).toString().replace(".", ",") + " mm</span>";
       fixRangeLeads();
     }).catch(function () {
-      R.meteo = null; R.cur = null;
+      R.meteo = null; R.cur = null; fitMeteoTitle();
       setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
     });
   }
@@ -1125,8 +1144,9 @@ footer { font-size: .78rem; color: var(--muted); }
   $("refresh").addEventListener("click", refresh);
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
   setInterval(function () { if (!document.hidden) refresh(); }, CFG.refreshMs);
-  window.addEventListener("resize", function () { verdict(); fitHeads(); fixLeads(); fixRangeLeads(); fixTempLeads(); });
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { verdict(); fitHeads(); fixRangeLeads(); fixTempLeads(); });
+  window.addEventListener("resize", function () { fitMeteoTitle(); verdict(); fitHeads(); fixLeads(); fixRangeLeads(); fixTempLeads(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fitMeteoTitle(); verdict(); fitHeads(); fixRangeLeads(); fixTempLeads(); });
+  fitMeteoTitle();
   refresh();
 })();
 </script>
