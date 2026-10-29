@@ -117,6 +117,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outlin
 .verdict[data-level="2"] { background: var(--bad-bg); color: var(--bad); }
 .v-label { margin: 0 0 2px; font-size: .75rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
 .v-main { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 2.1rem; line-height: 1.05; text-wrap: balance; }
+.v-main .vl { display: block; }
+.v-main.multi .vl { font-size: .72em; line-height: 1.15; margin-bottom: .12em; }
 .v-sub { margin: 8px 0 0; font-size: 1rem; font-weight: 500; }
 
 .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -1109,23 +1111,45 @@ footer { font-size: .78rem; color: var(--muted); }
   /* ---------- Verdict ---------- */
   function verdict() {
     var v = $("verdict"), main = $("vMain"), sub = $("vSub");
-    var parts = [], lvl = 0;
+    var parts = [], lvl = 0, items = [], baseText = R.meteo ? R.meteo.title : "Météo indisponible";
+    var add = function (l, r, t) { items.push({ l: l, r: r, t: t }); };
     if (R.meteo) {
       lvl = R.meteo.level;
-      if (meteoAge().level === "bad") { main.innerHTML = IC_WARN + "Météo à vérifier"; lvl = Math.max(lvl, 1); }
-      else if (R.meteo.level >= 1) main.innerHTML = IC_WARN + R.meteo.title; else main.textContent = R.meteo.title;
+      if (meteoAge().level === "bad") { add(1, 7, "Météo à vérifier"); lvl = Math.max(lvl, 1); }
+      else if (R.meteo.level >= 1) add(R.meteo.level, 2, R.meteo.title);
     }
-    else { main.textContent = "Météo indisponible"; lvl = -1; }
+    else lvl = -1;
     /* Transport */
     var lb = liveBus(), nb = lb.filter(function (p) { return Math.round((p.t - Date.now() / 1000) / 60) > CFG.walkMin; })[0] || lb[0] || null, busMin = nb ? Math.max(0, Math.round((nb.t - Date.now() / 1000) / 60)) : null;
     var mAl = R.alerts && R.alerts.metro, mStop = mAl && mAl.length && R.alerts.worst === "stop", mSlow = mAl && mAl.length && R.alerts.worst === "slow";
     var NB = "\u00a0";
-    if (mAl && mAl.length) lvl = Math.max(lvl, mStop ? 2 : 1);
+    if (mAl && mAl.length) add(mStop ? 2 : 1, 1, mStop ? "Métro 1 : interrompu" : mSlow ? "Métro 1 : ralenti" : "Métro 1 : perturbé");
     var mQuiet = R.alerts && !mAl.length, mOld = mQuiet && metroAge().level === "bad";
-    if (mOld) lvl = Math.max(lvl, 1);
+    if (mOld) add(1, 7, "Métro 1 : à vérifier");
+    /* Vélo : station, vent de face, fraîcheur de la lecture */
+    var wiV = windInfo();
+    if (R.vlille) {
+      if (R.vlille.off) add(2, 4, "Station hors service");
+      else if (R.vlille.bikes === 0) add(2, 4, "Pas de vélo");
+      else if (R.vlille.bikes <= 3) add(1, 5, "Presque plus de vélos");
+    }
+    if (wiV && wiV.head === 2) add(2, 3, "Fort vent de face · " + Math.round(wiV.sp) + "\u00a0km/h");
+    else if (wiV && wiV.head === 1) add(1, 6, "Vent de face · " + Math.round(wiV.sp) + "\u00a0km/h");
+    if (loadedOnce && LAST.vlille) {
+      var vMin = Math.floor(Math.max(0, Date.now() - LAST.vlille) / 60000);
+      if (!R.vlille || vMin >= CFG.clockVlilleRed) add(1, 7, "Vélo à vérifier");
+    }
+    /* Gros texte : une ligne par alerte, de la plus grave à la moins grave ; à gravité égale, ordre d'importance */
+    items.sort(function (x, y) { return y.l - x.l || x.r - y.r; });
+    items.forEach(function (it) { lvl = Math.max(lvl, it.l); });
+    if (!items.length) { main.textContent = baseText; main.classList.remove("multi"); }
+    else {
+      main.innerHTML = items.map(function (it) { return '<span class="vl">' + IC_WARN + it.t + "</span>"; }).join("");
+      main.classList.toggle("multi", items.length > 1);
+    }
     function build(compact) {
       var parts = [];
-      parts.push(mOld ? IC_METRO + NB + "1 : à vérifier" : !R.alerts ? IC_METRO + " : alertes indisponibles" : mStop ? IC_METRO + NB + "1 : interrompu" : mSlow ? IC_METRO + NB + "1 : ralenti" : mAl.length ? IC_METRO + NB + "1 : perturbé" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
+      parts.push(mOld || (mAl && mAl.length) ? IC_METRO + NB + "<b>!</b>" : !R.alerts ? IC_METRO + " : alertes indisponibles" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       var wi = windInfo(), hwi = wi && wi.head ? '<span class="hwi">' + IC_HW[wi.head] + "</span>" : "";
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + hwi + NB + R.vlille.bikes);
       parts.push(busMin != null ? IC_BUS + NB + nb.line + (compact ? NB + ":" + NB : NB + "dans" + NB) + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.busFail ? "Flux indisponible" : "Pas de bus annoncé"));
