@@ -1149,11 +1149,11 @@ footer { font-size: .78rem; color: var(--muted); }
     }
     function build(compact) {
       var parts = [];
-      parts.push(mOld || (mAl && mAl.length) ? IC_METRO + NB + "<b>!</b>" : !R.alerts ? IC_METRO + " : alertes indisponibles" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       var wi = windInfo(), hwi = wi && wi.head ? '<span class="hwi">' + IC_HW[wi.head] + "</span>" : "";
       if (R.vlille && !R.vlille.off) parts.push(IC_BIKE + hwi + NB + R.vlille.bikes);
       parts.push(busMin != null ? IC_BUS + NB + nb.line + (compact ? NB + ":" + NB : NB + "dans" + NB) + busMin + NB + "min" : IC_BUS + NB + (!loadedOnce ? "…" : R.busFail ? "Flux indisponible" : "Pas de bus annoncé"));
       if (busMin != null && R.busFail) parts.push("Flux" + NB + "indisponible");
+      parts.push(mOld || (mAl && mAl.length) ? IC_METRO + NB + "<b>!</b>" : !R.alerts ? IC_METRO + " : alertes indisponibles" : IC_METRO + NB + "1 : " + (compact ? "RAS" : "rien d'annoncé"));
       return parts.join('<span class="sep">·</span><wbr>');
     }
     var lh = parseFloat(getComputedStyle(sub).lineHeight) || parseFloat(getComputedStyle(sub).fontSize) * 1.5;
