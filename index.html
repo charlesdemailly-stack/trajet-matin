@@ -329,14 +329,15 @@ footer { font-size: .78rem; color: var(--muted); }
     clockBusWarnSec: 120, clockBusBadSec: 300,                   /* bus : même logique que le métro, âge mesuré sur l'heure de génération du flux */               /* métro : orange au-delà de 2 min, rouge au-delà de 5 min sans lecture réussie */
     tempStableDelta: 1,                                          /* écart max-min sous lequel la température est « stable » (°C) */
     rainProbWarn: 40, rainMmWarn: 0.5, rainMmBad: 1.5,          /* verdict pluie : orange dès 40 % ou 0,5 mm cumulé, rouge dès 1,5 mm (la probabilité seule ne rend jamais rouge) */
-    snowWarnCm: 0.5, snowBadCm: 1.5,                             /* neige (cm cumulés) : orange dès 0,5 cm, rouge dès 1,5 cm ; n'alimente jamais le bandeau du haut */
+    snowWarnCm: 0.5, snowBadCm: 1.5,                             /* neige (cm cumulés sur la plage) : orange dès 0,5 cm, rouge dès 1,5 cm, carte et bandeau */
     snowLightCm: 0.5, snowHeavyCm: 1.5,                          /* pictogramme de plage de neige : faible < 0,5 cm/h ≤ neige < 1,5 cm/h ≤ forte (pic horaire de la plage) */
     rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
+    iceAirC: 1, iceNightC: 0, iceNightAirC: 3, iceRainHours: 12, iceSnowHours: 24,   /* verglas : humidité à geler (pluie 12 h avant ou pendant, neige 24 h avant) et air ≤ 1 °C, ou nuit ≤ 0 °C et air ≤ 3 °C ; pluie verglaçante (codes 56, 57, 66, 67) = rouge */
     refreshMs: 60000
   };
   var URLS = {
     meteo: "https://api.open-meteo.com/v1/forecast?latitude=" + CFG.lat + "&longitude=" + CFG.lon +
-      "&hourly=temperature_2m,precipitation_probability,precipitation,rain,showers,snowfall&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&forecast_days=2",
+      "&hourly=temperature_2m,precipitation_probability,precipitation,rain,showers,snowfall,weather_code&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=Europe%2FParis&past_days=1&forecast_days=2",
     vlille: "https://media.ilevia.fr/opendata/station_status.json",
     rt: "https://proxy.transport.data.gouv.fr/resource/ilevia-lille-gtfs-rt",
     mobi: "https://api.mobilille.fr/v2/lines/?agency=ILE",
@@ -417,7 +418,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var rainAt = function (i) { return rainA && rainA[i] != null ? (rainA[i] || 0) + ((showA && showA[i]) || 0) : (totA[i] || 0); };
       var snowAt = function (i) { return (snowA && snowA[i]) || 0; };
       var now = parisNow(), day = now.date, start = Math.max(now.hour, 6), end = 20, label = "aujourd'hui";
-      if (now.hour >= 19) { day = t[24].slice(0, 10); start = 7; label = "demain"; }
+      if (now.hour >= 19) { day = t[t.length - 1].slice(0, 10); start = 7; label = "demain"; }
       var idx = [];
       t.forEach(function (s, i) { var h = parseInt(s.slice(11, 13), 10); if (s.slice(0, 10) === day && h >= start && h < end) idx.push(i); });
       if (!idx.length) throw new Error("no hours");
@@ -443,7 +444,23 @@ footer { font-size: .78rem; color: var(--muted); }
         return out;
       };
       var ranges = group(hours), snowRanges = group(snowHours);
-      /* Verdict du bandeau : pluie seulement (la neige n'y figure jamais) */
+      /* Verglas : pluie verglaçante pendant la plage (rouge) ; sinon humidité à geler + froid (orange) */
+      var iceLevel = 0, a0 = idx[0], codeA = H.weather_code;
+      var freezing = !!codeA && idx.some(function (i) { var c = codeA[i]; return c === 56 || c === 57 || c === 66 || c === 67; });
+      var airMin = 99; idx.forEach(function (i) { if (temp[i] != null) airMin = Math.min(airMin, temp[i]); });
+      var nightMin = 99, wetBefore = false, qa = a0 - 1;
+      while (qa > 0 && parseInt(t[qa].slice(11, 13), 10) !== 18) qa--;   /* nuit : de 18 h la veille jusqu'au début de la plage */
+      for (var q = Math.max(0, Math.min(qa, a0 - 24)); q < a0; q++) {
+        var back = a0 - q;
+        if (q >= qa && temp[q] != null) nightMin = Math.min(nightMin, temp[q]);
+        if (back <= CFG.iceRainHours && rainAt(q) >= 0.1) wetBefore = true;
+        if (back <= CFG.iceSnowHours && snowAt(q) >= 0.1) wetBefore = true;
+      }
+      var wetNow = idx.some(function (i) { return rainAt(i) >= 0.1 || snowAt(i) >= 0.1; });
+      if (freezing) iceLevel = 2;
+      else if ((wetBefore || wetNow) && (airMin <= CFG.iceAirC || (nightMin <= CFG.iceNightC && airMin <= CFG.iceNightAirC))) iceLevel = 1;
+      var snowAlert = sumSnow >= CFG.snowBadCm ? 2 : sumSnow >= CFG.snowWarnCm ? 1 : 0;
+      /* Verdict pluie du bandeau (neige et verglas : alertes séparées, plus bas) */
       var level = 0, title = "Rien de spécial";
       if (sum >= CFG.rainMmBad) { level = 2; title = "Parapluie + chaussures étanches"; }
       else if (maxP >= CFG.rainProbWarn || sum >= CFG.rainMmWarn) { level = 1; title = "Prends un parapluie"; }
@@ -455,7 +472,7 @@ footer { font-size: .78rem; color: var(--muted); }
       LAST.meteo = Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
-      R.meteo = { level: level, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
+      R.meteo = { level: level, ice: iceLevel, snowAlert: snowAlert, airMin: airMin, nightMin: nightMin, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
       var state = cardLevel === 2 ? "bad" : cardLevel === 1 ? "warn" : "ok";
       var snowLed = snowLevel > 0 && snowLevel >= level;
       var pill = snowLed ? "Neige" : level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
@@ -1117,7 +1134,13 @@ footer { font-size: .78rem; color: var(--muted); }
     if (R.meteo) {
       lvl = R.meteo.level;
       if (meteoAge().level === "bad") { add(1, 7, "Météo à vérifier"); lvl = Math.max(lvl, 1); }
-      else if (R.meteo.level >= 1) add(R.meteo.level, 2, R.meteo.title);
+      else {
+        if (R.meteo.level >= 1) add(R.meteo.level, 2, R.meteo.title);
+        if (R.meteo.snowAlert === 2) add(2, 2.4, "Neige : vélo déconseillé");
+        else if (R.meteo.snowAlert === 1) add(1, 2.4, "Neige : prudence à vélo");
+        if (R.meteo.ice === 2) add(2, 2.6, "Pluie verglaçante, vélo à éviter");
+        else if (R.meteo.ice === 1) add(1, 2.6, "Risque de verglas");
+      }
     }
     else lvl = -1;
     /* Transport */
