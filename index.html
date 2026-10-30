@@ -446,7 +446,7 @@ footer { font-size: .78rem; color: var(--muted); }
       var ranges = group(hours), snowRanges = group(snowHours);
       /* Verglas : pluie verglaçante pendant la plage (rouge) ; sinon humidité à geler + froid (orange) */
       var iceLevel = 0, a0 = idx[0], codeA = H.weather_code;
-      var freezing = !!codeA && idx.some(function (i) { var c = codeA[i]; return c === 56 || c === 57 || c === 66 || c === 67; });
+      var isFz = function (i) { var c = codeA && codeA[i]; return c === 56 || c === 57 || c === 66 || c === 67; };
       var airMin = 99; idx.forEach(function (i) { if (temp[i] != null) airMin = Math.min(airMin, temp[i]); });
       var nightMin = 99, wetBefore = false, qa = a0 - 1;
       while (qa > 0 && parseInt(t[qa].slice(11, 13), 10) !== 18) qa--;   /* nuit : de 18 h la veille jusqu'au début de la plage */
@@ -457,7 +457,19 @@ footer { font-size: .78rem; color: var(--muted); }
         if (back <= CFG.iceSnowHours && snowAt(q) >= 0.1) wetBefore = true;
       }
       var wetNow = idx.some(function (i) { return rainAt(i) >= 0.1 || snowAt(i) >= 0.1; });
-      if (freezing) iceLevel = 2;
+      /* Pluie verglaçante (rouge) : seulement si elle concerne le départ. Du plus urgent au moins urgent : en cours, dans l'heure, ce matin, cette nuit. */
+      var iceWhen = "", nowIdx = t.indexOf(now.date + "T" + (now.hour < 10 ? "0" : "") + now.hour + ":00"), today = label === "aujourd'hui";
+      if (today && nowIdx >= 0 && isFz(nowIdx)) iceWhen = "en cours";
+      else if (today ? isFz(nowIdx + 1) : (isFz(a0) || isFz(a0 + 1))) iceWhen = "dans l'heure";
+      else if (temp[a0] != null && temp[a0] <= CFG.iceAirC) {
+        for (var w = a0 - 1; w >= Math.max(0, a0 - 12) && !iceWhen; w--) {
+          if (!isFz(w)) continue;
+          var hw = parseInt(t[w].slice(11, 13), 10);
+          iceWhen = (hw >= 6 && hw < 18) ? "ce matin" : "cette nuit";
+        }
+        /* le plus récent d'abord : si « ce matin » existe il l'emporte sur « cette nuit » (le plus récent est parcouru en premier) */
+      }
+      if (iceWhen) iceLevel = 2;
       else if ((wetBefore || wetNow) && (airMin <= CFG.iceAirC || (nightMin <= CFG.iceNightC && airMin <= CFG.iceNightAirC))) iceLevel = 1;
       var snowAlert = sumSnow >= CFG.snowBadCm ? 2 : sumSnow >= CFG.snowWarnCm ? 1 : 0;
       /* Verdict pluie du bandeau (neige et verglas : alertes séparées, plus bas) */
@@ -472,7 +484,7 @@ footer { font-size: .78rem; color: var(--muted); }
       LAST.meteo = Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
-      R.meteo = { level: level, ice: iceLevel, snowAlert: snowAlert, airMin: airMin, nightMin: nightMin, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
+      R.meteo = { level: level, ice: iceLevel, iceWhen: iceWhen, snowAlert: snowAlert, airMin: airMin, nightMin: nightMin, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
       var state = cardLevel === 2 ? "bad" : cardLevel === 1 ? "warn" : "ok";
       var snowLed = snowLevel > 0 && snowLevel >= level;
       var pill = snowLed ? "Neige" : level === 2 ? "Pluie" : level === 1 ? "Risque" : "Sec";
@@ -1138,7 +1150,7 @@ footer { font-size: .78rem; color: var(--muted); }
         if (R.meteo.level >= 1) add(R.meteo.level, 2, R.meteo.title);
         if (R.meteo.snowAlert === 2) add(2, 2.4, "Neige : vélo déconseillé");
         else if (R.meteo.snowAlert === 1) add(1, 2.4, "Neige : prudence à vélo");
-        if (R.meteo.ice === 2) add(2, 2.6, "Pluie verglaçante, vélo à éviter");
+        if (R.meteo.ice === 2) add(2, 2.6, "Pluie verglaçante " + R.meteo.iceWhen + ", vélo à éviter");
         else if (R.meteo.ice === 1) add(1, 2.6, "Risque de verglas");
       }
     }
