@@ -4,6 +4,7 @@ on:
     paths:
       - ".github/workflows/log-vlille.yml"
       - "tools/log_vlille.py"
+      - "tools/log_meteo.py"
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -28,12 +29,15 @@ jobs:
           }
       - name: Relevé
         run: python3 main/tools/log_vlille.py data/vlille.csv
+      - name: Météo (air et sol, une fois par heure)
+        continue-on-error: true
+        run: python3 main/tools/log_meteo.py data/meteo.csv
       - name: Enregistrer
         working-directory: data
         run: |
           git config user.name "releve-vlille"
           git config user.email "releve-vlille@users.noreply.github.com"
-          git add vlille.csv
+          git add -A
           git diff --cached --quiet && exit 0
           git commit -qm "Relevé $(date -u +%FT%TZ)"
           git push "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}" HEAD:data
