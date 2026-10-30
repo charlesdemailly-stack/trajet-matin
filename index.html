@@ -332,7 +332,7 @@ footer { font-size: .78rem; color: var(--muted); }
     snowWarnCm: 0.5, snowBadCm: 1.5,                             /* neige (cm cumulés sur la plage) : orange dès 0,5 cm, rouge dès 1,5 cm, carte et bandeau */
     snowLightCm: 0.5, snowHeavyCm: 1.5,                          /* pictogramme de plage de neige : faible < 0,5 cm/h ≤ neige < 1,5 cm/h ≤ forte (pic horaire de la plage) */
     rainLightMm: 0.5, rainHeavyMm: 4,                            /* pictogramme de plage : bruine < 0,5 mm/h ≤ pluie < 4 mm/h ≤ forte pluie (pic horaire de la plage) */
-    iceAirC: 1, iceNightC: 0, iceNightAirC: 3, iceRainHours: 12, iceSnowHours: 24,   /* verglas : humidité à geler (pluie 12 h avant ou pendant, neige 24 h avant) et air ≤ 1 °C, ou nuit ≤ 0 °C et air ≤ 3 °C ; pluie verglaçante (codes 56, 57, 66, 67) = rouge */
+    iceAirC: 1, iceNightC: 0, iceNightAirC: 3, iceRainHours: 12, iceSnowHours: 24,   /* verglas : humidité à geler (pluie 12 h avant ou à l'heure du départ, neige 24 h avant) et air ≤ 1 °C, ou nuit ≤ 0 °C et air ≤ 3 °C ; pluie verglaçante (codes 56, 57, 66, 67) = rouge */
     refreshMs: 60000
   };
   var URLS = {
@@ -447,7 +447,7 @@ footer { font-size: .78rem; color: var(--muted); }
       /* Verglas : pluie verglaçante pendant la plage (rouge) ; sinon humidité à geler + froid (orange) */
       var iceLevel = 0, a0 = idx[0], codeA = H.weather_code;
       var isFz = function (i) { var c = codeA && codeA[i]; return c === 56 || c === 57 || c === 66 || c === 67; };
-      var airMin = 99; idx.forEach(function (i) { if (temp[i] != null) airMin = Math.min(airMin, temp[i]); });
+      var airMin = 99; [a0, a0 + 1].forEach(function (i) { if (temp[i] != null) airMin = Math.min(airMin, temp[i]); });   /* air au départ : l'heure du départ et la suivante */
       var nightMin = 99, wetBefore = false, qa = a0 - 1;
       while (qa > 0 && parseInt(t[qa].slice(11, 13), 10) !== 18) qa--;   /* nuit : de 18 h la veille jusqu'au début de la plage */
       for (var q = Math.max(0, Math.min(qa, a0 - 24)); q < a0; q++) {
@@ -456,7 +456,7 @@ footer { font-size: .78rem; color: var(--muted); }
         if (back <= CFG.iceRainHours && rainAt(q) >= 0.1) wetBefore = true;
         if (back <= CFG.iceSnowHours && snowAt(q) >= 0.1) wetBefore = true;
       }
-      var wetNow = idx.some(function (i) { return rainAt(i) >= 0.1 || snowAt(i) >= 0.1; });
+      var wetNow = [a0, a0 + 1].some(function (i) { return rainAt(i) >= 0.1 || snowAt(i) >= 0.1; });   /* pluie ou neige à l'heure du départ ou la suivante */
       /* Pluie verglaçante (rouge) : seulement si elle concerne le départ. Du plus urgent au moins urgent : en cours, dans l'heure, ce matin, cette nuit. */
       var iceWhen = "", nowIdx = t.indexOf(now.date + "T" + (now.hour < 10 ? "0" : "") + now.hour + ":00"), today = label === "aujourd'hui";
       if (today && nowIdx >= 0 && isFz(nowIdx)) iceWhen = "en cours";
