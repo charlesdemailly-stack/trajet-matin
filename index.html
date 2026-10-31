@@ -1036,7 +1036,7 @@ footer { font-size: .78rem; color: var(--muted); }
         var feedEnd = p.heure_fin_prevue ? wallTime(p.heure_fin_prevue) : null;
         if (feedEnd !== null && isNaN(feedEnd)) feedEnd = null;
         var msg = cleanMsg(p.message), start = pickDate(p);
-        var raw = decodeEnt(String(p.message || "").replace(/<br\s*\/?>/gi, "\n").replace(/<b>/gi, "\u0001").replace(/<\/b>/gi, "\u0002").replace(/<\/?[a-z][^>]*>/gi, "")).replace(/[\u200b\u200c\u200d\ufeff]/g, "").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
+        var raw = decodeEnt(String(p.message || "").replace(/<br\s*\/?>/gi, "\n").replace(/<b>/gi, "\u0001").replace(/<\/b>/gi, "\u0002").replace(/<\/?[a-z][^>]*>/gi, "")).replace(/[\u200b\u200c\u200d\ufeff]/g, "").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").replace(/(^|[\s\n])([A-Z])\.\n(?=[A-Z]\.)/g, "$1$2.").trim();
         var tEnd = textEnd(msg, start);
         /* fin réelle = la plus proche entre le texte du message et le champ officiel (souvent un simple délai de 24 h) */
         var hardEnd = feedEnd !== null && tEnd !== null ? Math.min(feedEnd, tEnd) : (tEnd !== null ? tEnd : feedEnd);
