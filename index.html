@@ -536,7 +536,7 @@ footer { font-size: .78rem; color: var(--muted); }
       $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxPAll) + " %</span> · " + qs.join(" · ");
     }).catch(function () {
       R.meteo = null; R.cur = null; fitMeteoTitle();
-      setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant." + (METEO_ERR ? " (" + METEO_ERR + ")" : ""));
+      setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
     });
   }
 
