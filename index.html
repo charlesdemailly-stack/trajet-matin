@@ -410,8 +410,31 @@ footer { font-size: .78rem; color: var(--muted); }
   function fixTempLeads() { hideWrapLeads($("mMeteo"), ".tg", ".tlead"); }
   /* Plages de pluie : masque le « · » en début de ligne quand la plage passe à la ligne */
   function fixRangeLeads() { hideWrapLeads($("bMeteo"), ".rg", ".rlead"); }
+  /* Open-Meteo : prévisions réactualisées au plus toutes les 10 min (elles ne changent pas plus vite), 2 nouvelles tentatives,
+     et en cas d'échec on garde les dernières prévisions valides (jusqu'à 3 h) au lieu de tout effacer */
+  var METEO_CACHE = null, METEO_ERR = null;
+  try { var mc = JSON.parse(localStorage.getItem("tm_meteo") || "null"); if (mc && mc.j && mc.j.hourly && Date.now() - mc.t < 10800000) METEO_CACHE = mc; } catch (e) {}
+  function fetchMeteoRetry(n) {
+    return getJSON(URLS.meteo).catch(function (e) {
+      if (!n) throw e;
+      return new Promise(function (res) { setTimeout(res, 1500); }).then(function () { return fetchMeteoRetry(n - 1); });
+    });
+  }
+  function getMeteoJSON() {
+    var now = Date.now();
+    if (METEO_CACHE && now - METEO_CACHE.t < 600000) return Promise.resolve(METEO_CACHE.j);
+    return fetchMeteoRetry(2).then(function (j) {
+      METEO_CACHE = { t: Date.now(), j: j }; METEO_ERR = null;
+      try { localStorage.setItem("tm_meteo", JSON.stringify(METEO_CACHE)); } catch (e) {}
+      return j;
+    }).catch(function (e) {
+      METEO_ERR = String(e && e.message || e).slice(0, 40);
+      if (METEO_CACHE && Date.now() - METEO_CACHE.t < 10800000) return METEO_CACHE.j;
+      throw e;
+    });
+  }
   function loadMeteo() {
-    return getJSON(URLS.meteo).then(function (j) {
+    return getMeteoJSON().then(function (j) {
       var t = j.hourly.time, prob = j.hourly.precipitation_probability, temp = j.hourly.temperature_2m;
       var H = j.hourly, rainA = H.rain, showA = H.showers, snowA = H.snowfall, totA = H.precipitation;
       /* pluie = pluie + averses (mm) ; neige en cm. Repli sur le total si le détail manque. */
@@ -481,7 +504,7 @@ footer { font-size: .78rem; color: var(--muted); }
       /* Neige : niveau de la carte seulement */
       var snowLevel = sumSnow >= CFG.snowBadCm ? 2 : (sumSnow >= CFG.snowWarnCm || (sumSnow >= 0.1 && maxPSnow >= CFG.rainProbWarn)) ? 1 : 0;
       var cardLevel = Math.max(level, snowLevel);
-      LAST.meteo = Date.now(); LAST.ok = Date.now();
+      LAST.meteo = METEO_CACHE ? METEO_CACHE.t : Date.now(); LAST.ok = Date.now();
       var cu = j.current;
       R.cur = cu ? { temp: cu.temperature_2m, code: cu.weather_code, day: cu.is_day === 1, wind: cu.wind_speed_10m, dir: cu.wind_direction_10m, gust: cu.wind_gusts_10m } : null;
       R.meteo = { level: level, ice: iceLevel, iceWhen: iceWhen, snowAlert: snowAlert, airMin: airMin, nightMin: nightMin, title: title, maxP: maxP, sum: sum, ranges: ranges, snowRanges: snowRanges, sumSnow: sumSnow, tmin: tmin, tmax: tmax, label: label, start: start, end: end };
@@ -513,7 +536,7 @@ footer { font-size: .78rem; color: var(--muted); }
       $("sMeteo").innerHTML = '<span class="mi' + cP + '">' + IC_DICE + Math.round(maxPAll) + " %</span> · " + qs.join(" · ");
     }).catch(function () {
       R.meteo = null; R.cur = null; fitMeteoTitle();
-      setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant.");
+      setCard("Meteo", "off", "Indisponible", "–", "Prévisions injoignables.", "Réessaie dans un instant." + (METEO_ERR ? " (" + METEO_ERR + ")" : ""));
     });
   }
 
