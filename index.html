@@ -836,7 +836,7 @@ footer { font-size: .78rem; color: var(--muted); }
       setCard("Bus", "off", "Indisponible", "?", null, "Flux temps réel Ilévia injoignable" + (R.busErr ? " (" + R.busErr + ")" : "") + ".");
       $("nBus").innerHTML = "";
     } else {
-      setCard("Bus", "off", "Aucun passage", BUS_OFF_SVG, "Aucun passage annoncé dans les 90 min (hors service ou pas de données temps réel).", "");
+      setCard("Bus", "off", "Aucun passage", BUS_OFF_SVG, "Aucun passage annoncé dans les 90 min (hors service ou pas de données temps réel).", R.busPartial ? "Flux Ilévia : aucune de vos lignes n'y figure actuellement." : "");
       $("nBus").innerHTML = "";
     }
   }
@@ -858,6 +858,7 @@ footer { font-size: .78rem; color: var(--muted); }
           });
         });
         pass.sort(function (x, y) { return x.t - y.t; });
+        R.busPartial = tus.length > 0 && !tus.some(function (tu) { return CFG.busRoutes.indexOf(tu.route) >= 0; });
         R.bus = { list: pass }; R.busFail = false; R.busErr = null; LAST.ok = Date.now();
         var nowMs = Date.now(), fts = feedTs ? feedTs * 1000 : 0;
         LAST.bus = (fts > nowMs - 3600000 && fts < nowMs + 300000) ? Math.min(fts, nowMs) : nowMs;
